@@ -1,58 +1,43 @@
 module LoanApproval.Util.LoanRequestConstant where
 
-import DA.List
-
 -- Loan Request Status Values:
 loanRequestStatusIndex : [(Int, Text)]
 loanRequestStatusIndex = [(1000, "Pending"), (2000, "Rejected")]
 
-parseLoanRequestStatusIndex = map snd loanRequestStatusIndex
-pendingRequestStatus = head parseLoanRequestStatusIndex
-rejectedRequestStatus = last parseLoanRequestStatusIndex
+[pendingRequestStatus, rejectedRequestStatus] = map snd loanRequestStatusIndex
 
 -- Nationality Values:
 nationalityIndex : [(Text, Text)] 
 nationalityIndex = [("Singaporean", "Singaporean"), ("Malaysian", "Malaysian"), ("Indian", "Indian"), 
   ("Filipino", "Filipino"), ("Indonesian", "Indonesian"), ("Chinese", "Chinese"), ("Others", "Others")]
 
-parseNationalityIndex = map snd nationalityIndex
-singaporeanNatl = head parseNationalityIndex
-malaysianNatl = parseNationalityIndex !! 1
-indianNatl = parseNationalityIndex !! 2
-filipinoNatl = parseNationalityIndex !! 3
-indonesianNatl = parseNationalityIndex !! 4
-chineseNatl = parseNationalityIndex !! 5
-othersNatl = last parseNationalityIndex
+[singaporeanNatl, malaysianNatl, indianNatl, filipinoNatl, indonesianNatl, 
+  chineseNatl, othersNatl] = map snd nationalityIndex
 
 -- Residential Status Values:
 residentialStatusIndex : [(Text, Text)]
 residentialStatusIndex = [("Citizen", "Citizen"), ("Permanent Resident", "Permanent Resident"), 
   ("Foreigner", "Foreigner"), ("Others", "Others")]
 
-parseResidentialStatusIndex = map snd residentialStatusIndex
-citizenResidentialStatus = head parseResidentialStatusIndex
-permanentResidentialStatus = parseResidentialStatusIndex !! 1
-foreignerResidentialStatus = parseResidentialStatusIndex !! 2
-othersResidentialStatus = last parseResidentialStatusIndex
+[citizenResidentialStatus, permanentResidentialStatus, foreignerResidentialStatus, 
+  othersResidentialStatus] = map snd residentialStatusIndex
 
 -- Loan Type Values:
 loanTypeIndex : [(Text, Text)] 
 loanTypeIndex = [("Personal", "Personal"), ("Home", "Home"), ("Car", "Car"), ("Business", "Business")]
 
-parseLoanTypeIndex = map snd loanTypeIndex
-personalLoanType = head parseLoanTypeIndex
-homeLoanType = parseLoanTypeIndex !! 1
-carLoanType = parseLoanTypeIndex !! 2
-businessLoanType = last parseLoanTypeIndex
+[personalLoanType, homeLoanType, carLoanType, businessLoanType] = map snd loanTypeIndex
 
 -- Marital Status Values:
 maritalStatusIndex : [(Text, Text)]
 maritalStatusIndex = [("Single", "Single"), ("Married", "Married"), ("Divorced", "Divorced"), 
   ("Widowed", "Widowed"), ("Separated", "Separated")]
 
-parseMaritalStatusIndex = map snd loanTypeIndex
-singleStatus = head parseMaritalStatusIndex
-marriedStatus = parseMaritalStatusIndex !! 1
-divorcedStatus = parseMaritalStatusIndex !! 2
-widowedStatus = parseMaritalStatusIndex !! 3
-separatedStatus = last parseMaritalStatusIndex
+[singleStatus, marriedStatus, divorcedStatus, widowedStatus, separatedStatus] = map snd loanTypeIndex
+
+-- Employment Type Values:
+employmentTypeIndex : [(Text, Text)]
+employmentTypeIndex = [("Full-time", "Full-time"), ("Part-time", "Part-time"), 
+  ("Contract", "Contract"), ("Employed", "Employed")]
+
+[fullTimeEmployment, partTimeEmployment, contractEmployment, employedEmployment] = map snd employmentTypeIndex

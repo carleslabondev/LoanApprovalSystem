@@ -1,9 +1,11 @@
 module LoanApproval.Model.LoanApprovalModel where
 
+-- Data Type Declaration for Template Keys:
 type LoanRequestKey = (Party, Party, Text, Text)
 type LoanBorrowerKey = (Party, Party)
 type LoanKey = (Party, Party, Text)
 
+-- Data Record for Borrower Details:
 data BorrowerDetails = BorrowerDetails with
     nationality: Text
     residentialStatus: Text
@@ -11,9 +13,17 @@ data BorrowerDetails = BorrowerDetails with
     noOfDependents: Int
   deriving (Eq, Show)
 
+-- Data Record for Employment Details:
+data EmploymentDetails = EmploymentDetails with
+    occupation: Text
+    typeOfEmployment: Text
+    lengthOfEmployment: Int
+    monthlyIncome: Decimal
+  deriving (Eq, Show)
+
+-- Data Record for Loan Details:
 data LoanDetails = LoanDetails with
     amount : Decimal
-    currency : Text
     loanPurpose : Text
     loanTerm : Int
     loanType : Text

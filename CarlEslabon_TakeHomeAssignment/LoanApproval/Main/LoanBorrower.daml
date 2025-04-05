@@ -12,6 +12,7 @@ template LoanBorrower
     bank : Party
     borrower : Party
     borrowerDetails : BorrowerDetails
+    employmentDetails : EmploymentDetails
 
   where
     signatory borrower
@@ -20,12 +21,16 @@ template LoanBorrower
     key (bank, borrower) : LoanBorrowerKey
     maintainer key._2
 
+    -- Create Loan Request Choice:
     nonconsuming choice CreateLoanRequest : ContractId LoanRequest
       with loanDetails : LoanDetails, loanReqId : Text
       controller borrower
       do
-        validateLoanRequest borrower bank borrowerDetails loanDetails
+        -- Validate Loan Request:
+        validateLoanRequest borrower bank borrowerDetails loanDetails employmentDetails
 
+        -- Generate Loan Request Pending Status:
         status <- generateLoanRequestStatus 1000
 
+        -- Create Loan Request Contract:
         create LoanRequest with ..

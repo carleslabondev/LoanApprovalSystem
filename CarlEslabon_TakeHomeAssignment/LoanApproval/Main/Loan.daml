@@ -9,7 +9,7 @@ template Loan
     loanId : Text
     loanDetails : LoanDetails
     borrowerDetails : BorrowerDetails
-    approvalDate: Date
+    employmentDetails : EmploymentDetails
 
   where
     signatory borrower, bank

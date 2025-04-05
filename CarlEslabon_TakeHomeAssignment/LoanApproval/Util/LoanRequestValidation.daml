@@ -1,33 +1,29 @@
 module LoanApproval.Util.LoanRequestValidation where
 
-import LoanApproval.Model.LoanApprovalModel
 import LoanApproval.Util.LoanRequestUtil
+import LoanApproval.Model.LoanApprovalModel
 import LoanApproval.Util.LoanRequestConstant
 
-import DA.Text
+import DA.Text as DT
 import DA.Map as DM
 import DA.Optional
 
--- Validate Loan Request Creation:
-validateLoanRequest : Party -> Party -> BorrowerDetails -> LoanDetails -> Update ()
-validateLoanRequest borrower bank borrowerDetails loanDetails = do
+-- Validate Loan Request:
+validateLoanRequest : Party -> Party -> BorrowerDetails -> LoanDetails -> EmploymentDetails -> Update ()
+validateLoanRequest borrower bank borrowerDetails loanDetails employmentDetails = do
     let [borrowerVal, bankVal] = generateTextFromParty [borrower, bank]
 
-    assertMsg ("The borrower: " <> borrowerVal <> 
-      " should not be equal to bank: " <> bankVal) (borrower /= bank)
+    -- Validate that the Borrower is not the same with the Bank:
+    assertMsg ("Borrower: " <> borrowerVal <> 
+      " should not be equal to Bank: " <> bankVal) (borrower /= bank)
 
+    -- Validate Borrower Details:
     validateBorrowerDetails borrowerDetails
-      
-    assertMsg "Currency must not be empty" (not $ isEmpty loanDetails.currency)
 
-    assertMsg "Loan term must be positive" (loanDetails.loanTerm > 0)
-    assertMsg "Loan amount must be greater than 0" (loanDetails.amount > 0.0)
-
-    let allowedCurrencies = ["SGD", "USD", "EUR"]
-    assertMsg "Unsupported currency" (loanDetails.currency `elem` allowedCurrencies)
-
-    assertMsg "Interest rate must be within acceptable range" 
-      (loanDetails.interestRate >= 0.01 && loanDetails.interestRate <= 0.5)
+    -- Validate Employment Details:
+    validateEmploymentDetails employmentDetails
+  
+    pure ()
 
 {- 
   Validate the Loan Request Data Records:
@@ -41,6 +37,7 @@ validateBorrowerDetails borrowerDetails = do
 
   validateNationality nationality residentialStatus
   validateResidentialStatus residentialStatus
+  validateMaritalStatus maritalStatus
 
   pure ()
 
@@ -56,69 +53,121 @@ validateNationality keyVal residentialStatus = do
   assertMsg (nationality <> " Nationality must have Residential Type: " <> citizenResidentialStatus)
     ((nationality == singaporeanNatl) && (residentialStatus == citizenResidentialStatus))
 
--- Validate Residential:
+  pure ()
+
+-- Validate Residential Status:
 validateResidentialStatus : Text -> Update ()
 validateResidentialStatus keyVal = do
-  let isResidentialStatusAvail = DM.lookup keyVal (fromList residentialStatusIndex)
-      residentialStatus = fromOptional "Not Found" isResidentialStatusAvail
+  let fieldVal = "Residential Status"
+  validateValueFromInputKey keyVal residentialStatusIndex fieldVal
 
-  assertMsg "Non-Existent Residential Status" (residentialStatus /= "Not Found")
+  pure ()
 
 -- Validate Marital Status:
 validateMaritalStatus : Text -> Update ()
 validateMaritalStatus keyVal = do
-  let isMaritalStatusAvail = DM.lookup keyVal (fromList maritalStatusIndex)
-      maritalStatus = fromOptional "Not Found" isMaritalStatusAvail
+  let fieldVal = "Marital Status"
+  validateValueFromInputKey keyVal maritalStatusIndex fieldVal
 
-  assertMsg "Non-Existent Marital Status" (maritalStatus /= "Not Found")
+  pure ()
+
+{- 
+  Validate the Loan Request Data Records:
+  Employment Details
+-}
+validateEmploymentDetails : EmploymentDetails -> Update ()
+validateEmploymentDetails employmentDetails = do
+  let occupation = employmentDetails.occupation
+      typeOfEmployment = employmentDetails.typeOfEmployment
+      lengthOfEmployment = employmentDetails.lengthOfEmployment
+
+  validateOccupation occupation
+  validateEmploymentType typeOfEmployment
+  validateEmploymentLength lengthOfEmployment
+
+  pure ()
+
+-- Validate Occupation:
+validateOccupation : Text -> Update ()
+validateOccupation occupation = do
+  let occupationLength = DT.length occupation
+
+  assertMsg "Occupation should not be empty" (not $ isEmpty occupation)
+  assertMsg "Occupation length should not exceed to 100 characters" 
+    (occupationLength > 0 && occupationLength <= 100)
+
+  pure ()
+
+-- Validate Employment Type:
+validateEmploymentType : Text -> Update ()
+validateEmploymentType keyVal = do
+  let fieldVal = "Employment Type"
+  validateValueFromInputKey keyVal employmentTypeIndex fieldVal
+
+  pure ()
+
+-- Validate Employment Length:
+validateEmploymentLength : Int -> Update ()
+validateEmploymentLength lengthOfEmployment = do
+  assertMsg "Length of Employment should be within 6 to 240 months" 
+    (lengthOfEmployment >= 6 && lengthOfEmployment <= 240)
+
+  pure ()
 
 {- 
   Validate the Loan Request Data Records:
   Loan Details
 -}
-validateLoanDetails : LoanDetails -> BorrowerDetails -> Update ()
-validateLoanDetails loanDetails borrowerDetails = do
+validateLoanDetails : LoanDetails -> BorrowerDetails -> EmploymentDetails -> Update ()
+validateLoanDetails loanDetails borrowerDetails employmentDetails = do
   let loanType = loanDetails.loanType
 
-  let nationality = borrowerDetails.nationality; 
+      nationality = borrowerDetails.nationality; 
       residentialStatus = borrowerDetails.residentialStatus
 
-  validateLoanType loanType nationality residentialStatus
+      monthlyIncome = employmentDetails.monthlyIncome
+
+  validateLoanType loanType nationality residentialStatus monthlyIncome
 
   pure ()
 
 -- Validate Loan Type:
-validateLoanType : Text -> Text -> Text -> Update ()
-validateLoanType loanType nationality residentialStatus = do
-  let mapLoanType = fromList loanTypeIndex
-      isLoanTypeAvail = DM.lookup loanType mapLoanType
-      loanType = fromOptional "Not Found" isLoanTypeAvail
-
-  assertMsg "Non-Existent Loan Type" (loanType /= "Not Found")
+validateLoanType : Text -> Text -> Text -> Decimal -> Update ()
+validateLoanType loanType nationality residentialStatus monthlyIncome = do
+  let fieldVal = "Loan Type"
+  validateValueFromInputKey loanType loanTypeIndex fieldVal
 
   {- 
     Personal Loan is only eligible either if the borrower is Singaporean or Non-Singaporean but with 
-    neither Residential Status of Foreigner nor Others:
+    neither Residential Status of Foreigner nor Others.
+
+    Monthly Income should be within $2,500.00 to $3,000.00 SGD: 
   -}
   assertMsg (personalLoanType <> " Loan Type is unallowed for Nationality: " <> nationality 
     <> " with Residential Status: " <> residentialStatus)
       ((loanType == personalLoanType) && ((nationality == singaporeanNatl) || 
         ((nationality /= singaporeanNatl) && (residentialStatus /= foreignerResidentialStatus || 
-            residentialStatus /= othersResidentialStatus))))
+            residentialStatus /= othersResidentialStatus))) &&
+              (monthlyIncome >= 2500.00 && monthlyIncome <= 3000.00))
 
   {- 
     Business Loan is only eligible either if the borrower is Singaporean or Non-Singaporean but with 
     neither Residential Status of Foreigner nor Others:
+
+    Monthly Income should be at least $2,500.00 SGD:
   -}
   assertMsg (businessLoanType <> " Loan Type is unallowed for Nationality: " <> nationality 
     <> " with Residential Status: " <> residentialStatus)
       ((loanType == businessLoanType) && ((nationality == singaporeanNatl) || 
         ((nationality /= singaporeanNatl) && (residentialStatus /= foreignerResidentialStatus || 
-            residentialStatus /= othersResidentialStatus))))
+            residentialStatus /= othersResidentialStatus))) &&
+              (monthlyIncome >= 2500.00))
 
   {- 
     Home Loan is only eligible either if the borrower is Singaporean or Non-Singaporean but not labeled as 
     Residential Status of Others:
+
+    No Monthly Income Requirement:
   -}
   assertMsg (homeLoanType <> " Loan Type is unallowed for Nationality: " <> nationality 
     <> " with Residential Status: " <> residentialStatus)
@@ -128,10 +177,24 @@ validateLoanType loanType nationality residentialStatus = do
   {- 
     Car Loan is only eligible either if the borrower is Singaporean or Non-Singaporean but not labeled as 
     Residential Status of Others:
+
+    Monthly Income should be at least $1,700.00 SGD:
   -}
   assertMsg (carLoanType <> " Loan Type is unallowed for Nationality: " <> nationality 
     <> " with Residential Status: " <> residentialStatus)
       ((loanType == carLoanType) && ((nationality == singaporeanNatl) || 
-        ((nationality /= singaporeanNatl) && (residentialStatus /= othersResidentialStatus))))
+        ((nationality /= singaporeanNatl) && (residentialStatus /= othersResidentialStatus))) &&
+          (monthlyIncome >= 1700.00))
+
+  pure ()
+
+{- 
+  Validate the value from the input key:
+-}
+validateValueFromInputKey keyVal index fieldVal = do
+  let isFieldValAvail = DM.lookup keyVal (fromList index)
+      parseFieldVal = fromOptional "Not Found" isFieldValAvail
+
+  assertMsg ("Non-Existent: " <> fieldVal) (parseFieldVal /= "Not Found")
 
   pure ()

@@ -11,6 +11,7 @@ template LoanRequest
     loanReqId: Text
     loanDetails : LoanDetails
     borrowerDetails : BorrowerDetails
+    employmentDetails : EmploymentDetails
     status : Text
 
   where
@@ -20,14 +21,18 @@ template LoanRequest
     key (bank, borrower, loanReqId, status) : LoanRequestKey
     maintainer key._2
 
+    -- Accept Loan Request Choice:
     choice ApproveRequest : ContractId Loan
       with loanId : Text, approvalDate : Date
       controller bank
       do
-        validateLoanRequest borrower bank borrowerDetails loanDetails
+        -- Validate Loan Request:
+        validateLoanRequest borrower bank borrowerDetails loanDetails employmentDetails
 
+        -- Create Loan Contract:
         create Loan with ..
 
+    -- Reject Loan Request Choice:
     choice RejectRequest : ()
       controller bank
       do
