@@ -1,62 +1,12 @@
 module LoanApproval.Util.LoanRequestUtil where
 
-import DA.Date
-import DA.Text (sha256, isDigit, explode, implode)
 import DA.Map as DM (lookup, fromList)
 import DA.Optional
 
 import LoanApproval.Util.LoanRequestConstant
 
-generateLoanId : Party -> Update Text
-generateLoanId = generateTransactionId
-
-generateLoanRequestId : Party -> Update Text
-generateLoanRequestId = generateTransactionId
-
-generateCurrentDateUTC : Update (Optional Date)
-generateCurrentDateUTC = do
-    Some . toDateUTC <$> getTime
-
 generateTextFromParty : [Party] -> [Text]
 generateTextFromParty parties = do map partyToText parties
-
-generateTransactionId : Party -> Update Text
-generateTransactionId party =
-  (show . toDateUTC <$> getTime) >>= \currentDate ->
-    let
-      combined = partyToText party <> currentDate
-      rawHash = sha256 combined
-      digitsOnly = filter isDigit (explode rawHash)
-      finalOutput = implode (take 14 digitsOnly)
-
-    in return finalOutput
-
-calculateAge : Date -> Date -> Int
-calculateAge dob currentDate =
-  let
-    (y1, m1, d1) = toGregorian dob
-    (y2, m2, d2) = toGregorian currentDate
-    yearDiff = y2 - y1
-    isBeforeBirthday = (m2, d2) < (m1, d1)
-  in
-    if isBeforeBirthday then yearDiff - 1 else yearDiff
-
-getAgeBand : Date -> Update Text
-getAgeBand dob = do
-  currentDate <- toDateUTC <$> getTime
-  let age = calculateAge dob currentDate
-
-  assertMsg "Age must be at least 21." (age >= 21)
-  assertMsg "Age must be 65 or below." (age <= 65)
-
-  let ageBand
-        | age <= 25 = "21-25"
-        | age <= 35 = "26-35"
-        | age <= 45 = "36-45"
-        | age <= 55 = "46-55"
-        | otherwise = "56-65"
-
-  pure ageBand
 
 generateLoanRequestStatus keyVal = do
   let isStatusAvail = DM.lookup keyVal (fromList loanRequestStatusIndex)

@@ -6,9 +6,10 @@ template Loan
   with
     borrower : Party
     bank : Party
+    loanId : Text
     loanDetails : LoanDetails
-    loanId: Text
     borrowerDetails : BorrowerDetails
+    approvalDate: Date
 
   where
     signatory borrower, bank

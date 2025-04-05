@@ -7,8 +7,6 @@ import LoanApproval.Model.LoanApprovalModel
 import LoanApproval.Util.LoanRequestUtil
 import LoanApproval.Util.LoanRequestValidation
 
-import DA.Optional
-
 template LoanBorrower
   with
     bank : Party
@@ -23,21 +21,11 @@ template LoanBorrower
     maintainer key._2
 
     nonconsuming choice CreateLoanRequest : ContractId LoanRequest
-      with loanDetails : LoanDetails
+      with loanDetails : LoanDetails, loanReqId : Text
       controller borrower
       do
         validateLoanRequest borrower bank borrowerDetails loanDetails
 
-        loanReqId <- generateLoanRequestId borrower
-        currentDate <- generateCurrentDateUTC
         status <- generateLoanRequestStatus 1000
 
-        isLoanAvailCid <- lookupByKey @LoanRequest (bank, borrower, loanReqId, status)
-
-        if isSome isLoanAvailCid then
-          do
-            loanId <- generateLoanRequestId borrower
-            create LoanRequest with ..
-        else
-          do
-            create LoanRequest with ..
+        create LoanRequest with ..

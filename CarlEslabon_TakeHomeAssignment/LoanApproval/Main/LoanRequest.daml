@@ -1,10 +1,7 @@
 module LoanApproval.Main.LoanRequest where
 
-import DA.Optional
-
 import LoanApproval.Main.Loan
 import LoanApproval.Model.LoanApprovalModel
-import LoanApproval.Util.LoanRequestUtil
 import LoanApproval.Util.LoanRequestValidation
 
 template LoanRequest
@@ -14,8 +11,7 @@ template LoanRequest
     loanReqId: Text
     loanDetails : LoanDetails
     borrowerDetails : BorrowerDetails
-    status: Text
-    currentDate : Optional Date
+    status : Text
 
   where
     signatory borrower
@@ -25,22 +21,12 @@ template LoanRequest
     maintainer key._2
 
     choice ApproveRequest : ContractId Loan
+      with loanId : Text, approvalDate : Date
       controller bank
       do
         validateLoanRequest borrower bank borrowerDetails loanDetails
 
-        loanId <- generateLoanId borrower
-        currentDate <- generateCurrentDateUTC
-
-        isLoanAvailCid <- lookupByKey @Loan (bank, borrower, loanId)
-
-        if isSome isLoanAvailCid then
-          do
-            loanId <- generateLoanId borrower
-            create Loan with ..
-        else
-          do
-            create Loan with ..
+        create Loan with ..
 
     choice RejectRequest : ()
       controller bank

@@ -8,6 +8,7 @@ import DA.Text
 import DA.Map as DM
 import DA.Optional
 
+-- Validate Loan Request Creation:
 validateLoanRequest : Party -> Party -> BorrowerDetails -> LoanDetails -> Update ()
 validateLoanRequest borrower bank borrowerDetails loanDetails = do
     let [borrowerVal, bankVal] = generateTextFromParty [borrower, bank]

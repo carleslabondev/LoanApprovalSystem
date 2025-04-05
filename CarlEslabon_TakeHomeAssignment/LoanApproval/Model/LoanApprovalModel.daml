@@ -5,7 +5,6 @@ type LoanBorrowerKey = (Party, Party)
 type LoanKey = (Party, Party, Text)
 
 data BorrowerDetails = BorrowerDetails with
-    dateOfBirth : Date
     nationality: Text
     residentialStatus: Text
     maritalStatus: Text

@@ -1,31 +1,26 @@
 module LoanApproval.Test.Test_LoanRequestApproval where
 
 import Daml.Script
-import DA.Date
 
-import LoanApproval.Main.LoanRequest
+import LoanApproval.Main.LoanBorrower
 import LoanApproval.Model.LoanApprovalModel
 import LoanApproval.Test.Util.LoanApprovalTestUtil
 
 test_LoanRequestApproval: Script ()
 test_LoanRequestApproval = script do
-  let parties = ["Borrower", "Bank"]
-
-  [borrower, bank] <- generateParties parties
+  [borrower, bank] <- generateParties ["Borrower", "Bank"]
 
   let loanDetails = LoanDetails 
         with amount = 10000.0, currency = "USD", loanType = "Personal",
               loanPurpose = "Home Renovation", loanTerm = 36, interestRate = 0.5
 
       borrowerDetails = BorrowerDetails
-        with nationality = "Singaporean", residentialStatus = "Permanent Resident", dateOfBirth = date 1985 Feb 1
+        with nationality = "Singaporean", residentialStatus = "Citizen", 
+              maritalStatus = "Single", noOfDependents = 3
         
-      loanReqId = "REQ-001"; status = "Pending"; currentDate = None
+  loanReqCid <- submit borrower do createCmd LoanBorrower with ..
+  
+  loanCid <- submit borrower do 
+    exerciseCmd loanReqCid CreateLoanRequest with loanReqId = "REQ-001", ..
 
-  loanReqCid <- submit borrower do
-    createCmd LoanRequest with loanDetails = loanDetails, borrowerDetails = borrowerDetails, ..
-
-  loanCid <- submit bank do
-    exerciseCmd loanReqCid ApproveRequest
-
-  return ()
+  pure ()
