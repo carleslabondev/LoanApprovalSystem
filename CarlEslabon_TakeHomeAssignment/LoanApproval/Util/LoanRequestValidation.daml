@@ -2,31 +2,135 @@ module LoanApproval.Util.LoanRequestValidation where
 
 import LoanApproval.Model.LoanApprovalModel
 import LoanApproval.Util.LoanRequestUtil
+import LoanApproval.Util.LoanRequestConstant
 
 import DA.Text
+import DA.Map as DM
+import DA.Optional
 
-validateLoanRequestProcess : Party -> Party -> BorrowerDetails -> LoanDetails -> Update ()
-validateLoanRequestProcess borrower bank borrowerInfo loan = do
+validateLoanRequest : Party -> Party -> BorrowerDetails -> LoanDetails -> Update ()
+validateLoanRequest borrower bank borrowerDetails loanDetails = do
     let [borrowerVal, bankVal] = generateTextFromParty [borrower, bank]
 
-    assertMsg ("Borrower: " <> borrowerVal <> 
-      " should not be equal to Bank: " <> bankVal) (borrower /= bank)
+    assertMsg ("The borrower: " <> borrowerVal <> 
+      " should not be equal to bank: " <> bankVal) (borrower /= bank)
 
-    assertMsg "Borrower name must not be empty" (not $ isEmpty borrowerInfo.borrowerName)
-    assertMsg "Currency must not be empty" (not $ isEmpty loan.currency)
+    validateBorrowerDetails borrowerDetails
+      
+    assertMsg "Currency must not be empty" (not $ isEmpty loanDetails.currency)
 
-    assertMsg "Loan term must be positive" (loan.loanTerm > 0)
-    assertMsg "Loan amount must be greater than 0" (loan.amount > 0.0)
-
-    -- assertMsg "Borrower income must be a positive value" (borrowerInfo.borrowerIncome > 0.0)
-    -- assertMsg "Borrower income must be at least 1000" (borrowerInfo.borrowerIncome >= 1000.0)
+    assertMsg "Loan term must be positive" (loanDetails.loanTerm > 0)
+    assertMsg "Loan amount must be greater than 0" (loanDetails.amount > 0.0)
 
     let allowedCurrencies = ["SGD", "USD", "EUR"]
-    assertMsg "Unsupported currency" (loan.currency `elem` allowedCurrencies)
+    assertMsg "Unsupported currency" (loanDetails.currency `elem` allowedCurrencies)
 
-    assertMsg "Interest rate must be within acceptable range" (loan.interestRate >= 0.01 && loan.interestRate <= 0.5)
+    assertMsg "Interest rate must be within acceptable range" 
+      (loanDetails.interestRate >= 0.01 && loanDetails.interestRate <= 0.5)
 
-    -- assertMsg "Invalid initial status" (status == "PENDING")
-    -- assertMsg "Current date must be unset at creation" (isNone currentDate)
+{- 
+  Validate the Loan Request Data Records:
+  Borrower Details
+-}
+validateBorrowerDetails : BorrowerDetails -> Update ()
+validateBorrowerDetails borrowerDetails = do
+  let nationality = borrowerDetails.nationality
+      residentialStatus = borrowerDetails.residentialStatus
+      maritalStatus = borrowerDetails.maritalStatus
 
-    -- Validate loan purpose (non-empty or from an approved list).
+  validateNationality nationality residentialStatus
+  validateResidentialStatus residentialStatus
+
+  pure ()
+
+-- Validate Nationality:
+validateNationality : Text -> Text -> Update ()
+validateNationality keyVal residentialStatus = do
+  let isNationalityAvail = DM.lookup keyVal (fromList nationalityIndex)
+      nationality = fromOptional "Not Found" isNationalityAvail
+
+  assertMsg "Non-Existent Nationality" (nationality /= "Not Found")
+
+  -- Singaporean Nationality must be declared as Residential Type of Citizen:
+  assertMsg (nationality <> " Nationality must have Residential Type: " <> citizenResidentialStatus)
+    ((nationality == singaporeanNatl) && (residentialStatus == citizenResidentialStatus))
+
+-- Validate Residential:
+validateResidentialStatus : Text -> Update ()
+validateResidentialStatus keyVal = do
+  let isResidentialStatusAvail = DM.lookup keyVal (fromList residentialStatusIndex)
+      residentialStatus = fromOptional "Not Found" isResidentialStatusAvail
+
+  assertMsg "Non-Existent Residential Status" (residentialStatus /= "Not Found")
+
+-- Validate Marital Status:
+validateMaritalStatus : Text -> Update ()
+validateMaritalStatus keyVal = do
+  let isMaritalStatusAvail = DM.lookup keyVal (fromList maritalStatusIndex)
+      maritalStatus = fromOptional "Not Found" isMaritalStatusAvail
+
+  assertMsg "Non-Existent Marital Status" (maritalStatus /= "Not Found")
+
+{- 
+  Validate the Loan Request Data Records:
+  Loan Details
+-}
+validateLoanDetails : LoanDetails -> BorrowerDetails -> Update ()
+validateLoanDetails loanDetails borrowerDetails = do
+  let loanType = loanDetails.loanType
+
+  let nationality = borrowerDetails.nationality; 
+      residentialStatus = borrowerDetails.residentialStatus
+
+  validateLoanType loanType nationality residentialStatus
+
+  pure ()
+
+-- Validate Loan Type:
+validateLoanType : Text -> Text -> Text -> Update ()
+validateLoanType loanType nationality residentialStatus = do
+  let mapLoanType = fromList loanTypeIndex
+      isLoanTypeAvail = DM.lookup loanType mapLoanType
+      loanType = fromOptional "Not Found" isLoanTypeAvail
+
+  assertMsg "Non-Existent Loan Type" (loanType /= "Not Found")
+
+  {- 
+    Personal Loan is only eligible either if the borrower is Singaporean or Non-Singaporean but with 
+    neither Residential Status of Foreigner nor Others:
+  -}
+  assertMsg (personalLoanType <> " Loan Type is unallowed for Nationality: " <> nationality 
+    <> " with Residential Status: " <> residentialStatus)
+      ((loanType == personalLoanType) && ((nationality == singaporeanNatl) || 
+        ((nationality /= singaporeanNatl) && (residentialStatus /= foreignerResidentialStatus || 
+            residentialStatus /= othersResidentialStatus))))
+
+  {- 
+    Business Loan is only eligible either if the borrower is Singaporean or Non-Singaporean but with 
+    neither Residential Status of Foreigner nor Others:
+  -}
+  assertMsg (businessLoanType <> " Loan Type is unallowed for Nationality: " <> nationality 
+    <> " with Residential Status: " <> residentialStatus)
+      ((loanType == businessLoanType) && ((nationality == singaporeanNatl) || 
+        ((nationality /= singaporeanNatl) && (residentialStatus /= foreignerResidentialStatus || 
+            residentialStatus /= othersResidentialStatus))))
+
+  {- 
+    Home Loan is only eligible either if the borrower is Singaporean or Non-Singaporean but not labeled as 
+    Residential Status of Others:
+  -}
+  assertMsg (homeLoanType <> " Loan Type is unallowed for Nationality: " <> nationality 
+    <> " with Residential Status: " <> residentialStatus)
+      ((loanType == homeLoanType) && ((nationality == singaporeanNatl) || 
+        ((nationality /= singaporeanNatl) && (residentialStatus /= othersResidentialStatus))))
+
+  {- 
+    Car Loan is only eligible either if the borrower is Singaporean or Non-Singaporean but not labeled as 
+    Residential Status of Others:
+  -}
+  assertMsg (carLoanType <> " Loan Type is unallowed for Nationality: " <> nationality 
+    <> " with Residential Status: " <> residentialStatus)
+      ((loanType == carLoanType) && ((nationality == singaporeanNatl) || 
+        ((nationality /= singaporeanNatl) && (residentialStatus /= othersResidentialStatus))))
+
+  pure ()

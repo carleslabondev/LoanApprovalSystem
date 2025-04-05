@@ -6,9 +6,9 @@ template Loan
   with
     borrower : Party
     bank : Party
-    loan : LoanDetails
+    loanDetails : LoanDetails
     loanId: Text
-    borrowerInfo : BorrowerDetails
+    borrowerDetails : BorrowerDetails
 
   where
     signatory borrower, bank

@@ -1,0 +1,59 @@
+module LoanApproval.Util.LoanRequestConstant where
+
+import DA.Map
+import DA.List
+
+-- Loan Request Status Values:
+loanRequestStatusIndex : [(Int, Text)]
+loanRequestStatusIndex = [(1000, "Pending"), (2000, "Rejected")]
+
+parseLoanRequestStatusIndex = values (fromList loanRequestStatusIndex)
+pendingRequestStatus = head parseLoanRequestStatusIndex
+rejectedRequestStatus = last parseLoanRequestStatusIndex
+
+-- Nationality Values:
+nationalityIndex : [(Text, Text)] 
+nationalityIndex = [("Singaporean", "Singaporean"), ("Malaysian", "Malaysian"), ("Indian", "Indian"), 
+  ("Filipino", "Filipino"), ("Indonesian", "Indonesian"), ("Chinese", "Chinese"), ("Others", "Others")]
+
+parseNationalityIndex = values (fromList nationalityIndex)
+singaporeanNatl = head parseNationalityIndex
+malaysianNatl = parseNationalityIndex !! 1
+indianNatl = parseNationalityIndex !! 2
+filipinoNatl = parseNationalityIndex !! 3
+indonesianNatl = parseNationalityIndex !! 4
+chineseNatl = parseNationalityIndex !! 5
+othersNatl = last parseNationalityIndex
+
+-- Residential Status Values:
+residentialStatusIndex : [(Text, Text)]
+residentialStatusIndex = [("Citizen", "Citizen"), ("Permanent Resident", "Permanent Resident"), 
+  ("Foreigner", "Foreigner"), ("Others", "Others")]
+
+parseResidentialStatusIndex = values $ fromList residentialStatusIndex
+citizenResidentialStatus = head parseResidentialStatusIndex
+permanentResidentialStatus = parseResidentialStatusIndex !! 1
+foreignerResidentialStatus = parseResidentialStatusIndex !! 2
+othersResidentialStatus = last parseResidentialStatusIndex
+
+-- Loan Type Values:
+loanTypeIndex : [(Text, Text)] 
+loanTypeIndex = [("Personal", "Personal"), ("Home", "Home"), ("Car", "Car"), ("Business", "Business")]
+
+parseLoanTypeIndex = values $ fromList loanTypeIndex
+personalLoanType = head parseLoanTypeIndex
+homeLoanType = parseLoanTypeIndex !! 1
+carLoanType = parseLoanTypeIndex !! 2
+businessLoanType = last parseLoanTypeIndex
+
+-- Marital Status Values:
+maritalStatusIndex : [(Text, Text)]
+maritalStatusIndex = [("Single", "Single"), ("Married", "Married"), ("Divorced", "Divorced"), 
+  ("Widowed", "Widowed"), ("Separated", "Separated")]
+
+parseMaritalStatusIndex = values $ fromList loanTypeIndex
+singleStatus = head parseMaritalStatusIndex
+marriedStatus = parseMaritalStatusIndex !! 1
+divorcedStatus = parseMaritalStatusIndex !! 2
+widowedStatus = parseMaritalStatusIndex !! 3
+separatedStatus = last parseMaritalStatusIndex

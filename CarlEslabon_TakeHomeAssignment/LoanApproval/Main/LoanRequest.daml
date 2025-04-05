@@ -12,8 +12,8 @@ template LoanRequest
     borrower : Party
     bank : Party
     loanReqId: Text
-    loan : LoanDetails
-    borrowerInfo : BorrowerDetails
+    loanDetails : LoanDetails
+    borrowerDetails : BorrowerDetails
     status: Text
     currentDate : Optional Date
 
@@ -27,7 +27,7 @@ template LoanRequest
     choice ApproveRequest : ContractId Loan
       controller bank
       do
-        validateLoanRequestProcess borrower bank borrowerInfo loan
+        validateLoanRequest borrower bank borrowerDetails loanDetails
 
         loanId <- generateLoanId borrower
         currentDate <- generateCurrentDateUTC

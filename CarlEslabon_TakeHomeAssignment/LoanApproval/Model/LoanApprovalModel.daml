@@ -5,8 +5,11 @@ type LoanBorrowerKey = (Party, Party)
 type LoanKey = (Party, Party, Text)
 
 data BorrowerDetails = BorrowerDetails with
-    borrowerName : Text
-    borrowerIncome : Decimal
+    dateOfBirth : Date
+    nationality: Text
+    residentialStatus: Text
+    maritalStatus: Text
+    noOfDependents: Int
   deriving (Eq, Show)
 
 data LoanDetails = LoanDetails with
@@ -14,5 +17,6 @@ data LoanDetails = LoanDetails with
     currency : Text
     loanPurpose : Text
     loanTerm : Int
+    loanType : Text
     interestRate : Decimal
   deriving (Eq, Show)
