@@ -1,0 +1,28 @@
+module LoanApproval.Util.LoanRequestUtil where
+
+import DA.Date
+import DA.Text (sha256, isDigit, explode, implode)
+
+generateLoanId : Party -> Update Text
+generateLoanId = generateTransactionId
+
+generateLoanRequestId : Party -> Update Text
+generateLoanRequestId = generateTransactionId
+
+generateCurrentDateUTC : Update (Optional Date)
+generateCurrentDateUTC = do
+    Some . toDateUTC <$> getTime
+
+generateTransactionId : Party -> Update Text
+generateTransactionId party =
+  (show . toDateUTC <$> getTime) >>= \currentDate ->
+    let
+      combined = partyToText party <> currentDate
+      rawHash = sha256 combined
+      digitsOnly = filter isDigit (explode rawHash)
+      finalOutput = implode (take 14 digitsOnly)
+
+    in return finalOutput
+
+generateTextFromParty : [Party] -> [Text]
+generateTextFromParty parties = do map partyToText parties

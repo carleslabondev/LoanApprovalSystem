@@ -1,0 +1,30 @@
+module LoanApproval.Test.Test_LoanRequestApproval where
+
+import Daml.Script
+
+import LoanApproval.Main.LoanRequest
+import LoanApproval.Model.LoanApprovalModel
+import LoanApproval.Test.Util.LoanApprovalTestUtil
+
+test_LoanRequestApproval: Script ()
+test_LoanRequestApproval = script do
+  let parties = ["Borrower", "Bank"]
+
+  [borrower, bank] <- generateParties parties
+
+  let loanDetails = LoanDetails 
+        with amount = 10000.0, currency = "USD", 
+              loanPurpose = "Home Renovation", loanTerm = 36, interestRate = 0.5
+
+      borrowerDetails = BorrowerDetails
+        with borrowerName = "John Doe", borrowerIncome = 75000.0
+        
+      loanReqId = "REQ-001"; status = "Pending"; currentDate = None
+
+  loanReqCid <- submit borrower do
+    createCmd LoanRequest with loan = loanDetails, borrowerInfo = borrowerDetails, ..
+
+  loanCid <- submit bank do
+    exerciseCmd loanReqCid ApproveRequest
+
+  return ()

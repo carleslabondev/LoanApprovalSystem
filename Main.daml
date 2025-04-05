@@ -1,0 +1,7 @@
+module Main where
+
+import Daml.Script
+
+setup: Script ()
+setup = do
+  return ()

@@ -1,0 +1,17 @@
+module LoanApproval.Main.Loan where
+
+import LoanApproval.Model.LoanApprovalModel
+
+template Loan
+  with
+    borrower : Party
+    bank : Party
+    loan : LoanDetails
+    loanId: Text
+    borrowerInfo : BorrowerDetails
+
+  where
+    signatory borrower, bank
+
+    key (bank, borrower, loanId) : LoanKey
+    maintainer key._1

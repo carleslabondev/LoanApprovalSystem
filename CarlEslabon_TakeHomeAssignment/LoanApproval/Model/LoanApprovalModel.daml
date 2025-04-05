@@ -1,0 +1,18 @@
+module LoanApproval.Model.LoanApprovalModel where
+
+type LoanRequestKey = (Party, Party, Text, Text)
+type LoanBorrowerKey = (Party, Party)
+type LoanKey = (Party, Party, Text)
+
+data BorrowerDetails = BorrowerDetails with
+    borrowerName : Text
+    borrowerIncome : Decimal
+  deriving (Eq, Show)
+
+data LoanDetails = LoanDetails with
+    amount : Decimal
+    currency : Text
+    loanPurpose : Text
+    loanTerm : Int
+    interestRate : Decimal
+  deriving (Eq, Show)

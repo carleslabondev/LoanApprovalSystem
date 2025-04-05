@@ -1,0 +1,5 @@
+/.daml
+/.vscode
+/log
+navigator.log
+*.DS_Store

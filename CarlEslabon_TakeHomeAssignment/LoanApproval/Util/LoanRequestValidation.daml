@@ -1,0 +1,32 @@
+module LoanApproval.Util.LoanRequestValidation where
+
+import LoanApproval.Model.LoanApprovalModel
+import LoanApproval.Util.LoanRequestUtil
+
+import DA.Text
+
+validateLoanRequestProcess : Party -> Party -> BorrowerDetails -> LoanDetails -> Update ()
+validateLoanRequestProcess borrower bank borrowerInfo loan = do
+    let [borrowerVal, bankVal] = generateTextFromParty [borrower, bank]
+
+    assertMsg ("Borrower: " <> borrowerVal <> 
+      " should not be equal to Bank: " <> bankVal) (borrower /= bank)
+
+    assertMsg "Borrower name must not be empty" (not $ isEmpty borrowerInfo.borrowerName)
+    assertMsg "Currency must not be empty" (not $ isEmpty loan.currency)
+
+    assertMsg "Loan term must be positive" (loan.loanTerm > 0)
+    assertMsg "Loan amount must be greater than 0" (loan.amount > 0.0)
+
+    -- assertMsg "Borrower income must be a positive value" (borrowerInfo.borrowerIncome > 0.0)
+    -- assertMsg "Borrower income must be at least 1000" (borrowerInfo.borrowerIncome >= 1000.0)
+
+    let allowedCurrencies = ["SGD", "USD", "EUR"]
+    assertMsg "Unsupported currency" (loan.currency `elem` allowedCurrencies)
+
+    assertMsg "Interest rate must be within acceptable range" (loan.interestRate >= 0.01 && loan.interestRate <= 0.5)
+
+    -- assertMsg "Invalid initial status" (status == "PENDING")
+    -- assertMsg "Current date must be unset at creation" (isNone currentDate)
+
+    -- Validate loan purpose (non-empty or from an approved list).

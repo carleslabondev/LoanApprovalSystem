@@ -1,0 +1,44 @@
+module LoanApproval.Main.LoanBorrower where
+
+import LoanApproval.Main.LoanRequest
+
+import LoanApproval.Model.LoanApprovalModel
+
+import LoanApproval.Util.LoanRequestUtil
+import LoanApproval.Util.LoanRequestStatus
+import LoanApproval.Util.LoanRequestValidation
+
+import DA.Optional
+
+template LoanBorrower
+  with
+    bank : Party
+    borrower : Party
+    borrowerInfo : BorrowerDetails
+
+  where
+    signatory borrower
+    observer bank
+
+    key (bank, borrower) : LoanBorrowerKey
+    maintainer key._2
+
+    nonconsuming choice CreateLoanRequest : ContractId LoanRequest
+      with loan : LoanDetails
+      controller borrower
+      do
+        validateLoanRequestProcess borrower bank borrowerInfo loan
+
+        loanReqId <- generateLoanRequestId borrower
+        currentDate <- generateCurrentDateUTC
+        status <- generateLoanRequestStatus 1000
+
+        isLoanAvailCid <- lookupByKey @LoanRequest (bank, borrower, loanReqId, status)
+
+        if isSome isLoanAvailCid then
+          do
+            loanId <- generateLoanRequestId borrower
+            create LoanRequest with ..
+        else
+          do
+            create LoanRequest with ..
