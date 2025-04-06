@@ -22,6 +22,9 @@ validateLoanRequest borrower bank borrowerDetails loanDetails employmentDetails 
 
     -- Validate Employment Details:
     validateEmploymentDetails employmentDetails
+
+    -- Validate Loan Details:
+    validateLoanDetails loanDetails borrowerDetails employmentDetails
   
     pure ()
 
@@ -125,66 +128,41 @@ validateLoanDetails loanDetails borrowerDetails employmentDetails = do
       nationality = borrowerDetails.nationality; 
       residentialStatus = borrowerDetails.residentialStatus
 
-      monthlyIncome = employmentDetails.monthlyIncome
-
-  validateLoanType loanType nationality residentialStatus monthlyIncome
+  validateLoanType loanType nationality residentialStatus
 
   pure ()
 
 -- Validate Loan Type:
-validateLoanType : Text -> Text -> Text -> Decimal -> Update ()
-validateLoanType loanType nationality residentialStatus monthlyIncome = do
+validateLoanType : Text -> Text -> Text -> Update ()
+validateLoanType loanType nationality residentialStatus = do
   let fieldVal = "Loan Type"
   validateValueFromInputKey loanType loanTypeIndex fieldVal
 
-  {- 
-    Personal Loan is only eligible either if the borrower is Singaporean or Non-Singaporean but with 
-    neither Residential Status of Foreigner nor Others.
+  case loanType of
+    {- 
+      Personal/Business Loan is only eligible either if the borrower is Singaporean or Non-Singaporean but with 
+      neither Residential Status of Foreigner nor Others.
+    -}
+    lt | lt == personalLoanType || lt == businessLoanType ->
+      assertMsg (lt <> " Loan Type is unallowed for Nationality: " <> nationality 
+        <> " with Residential Status: " <> residentialStatus)
+        ((nationality == singaporeanNatl) || 
+        ((nationality /= singaporeanNatl) && 
+          (residentialStatus /= foreignerResidentialStatus && 
+          residentialStatus /= othersResidentialStatus)))
 
-    Monthly Income should be within $2,500.00 to $3,000.00 SGD: 
-  -}
-  assertMsg (personalLoanType <> " Loan Type is unallowed for Nationality: " <> nationality 
-    <> " with Residential Status: " <> residentialStatus)
-      ((loanType == personalLoanType) && ((nationality == singaporeanNatl) || 
-        ((nationality /= singaporeanNatl) && (residentialStatus /= foreignerResidentialStatus || 
-            residentialStatus /= othersResidentialStatus))) &&
-              (monthlyIncome >= 2500.00 && monthlyIncome <= 3000.00))
+    {- 
+      Home/Car Loan is only eligible either if the borrower is Singaporean or Non-Singaporean but not labeled as 
+      Residential Status of Others:
+    -}
+    lt | lt == homeLoanType || lt == carLoanType ->
+      assertMsg (lt <> " Loan Type is unallowed for Nationality: " <> nationality 
+        <> " with Residential Status: " <> residentialStatus)
+        ((nationality == singaporeanNatl) || 
+        ((nationality /= singaporeanNatl) && 
+          (residentialStatus /= othersResidentialStatus)))
 
-  {- 
-    Business Loan is only eligible either if the borrower is Singaporean or Non-Singaporean but with 
-    neither Residential Status of Foreigner nor Others:
-
-    Monthly Income should be at least $2,500.00 SGD:
-  -}
-  assertMsg (businessLoanType <> " Loan Type is unallowed for Nationality: " <> nationality 
-    <> " with Residential Status: " <> residentialStatus)
-      ((loanType == businessLoanType) && ((nationality == singaporeanNatl) || 
-        ((nationality /= singaporeanNatl) && (residentialStatus /= foreignerResidentialStatus || 
-            residentialStatus /= othersResidentialStatus))) &&
-              (monthlyIncome >= 2500.00))
-
-  {- 
-    Home Loan is only eligible either if the borrower is Singaporean or Non-Singaporean but not labeled as 
-    Residential Status of Others:
-
-    No Monthly Income Requirement:
-  -}
-  assertMsg (homeLoanType <> " Loan Type is unallowed for Nationality: " <> nationality 
-    <> " with Residential Status: " <> residentialStatus)
-      ((loanType == homeLoanType) && ((nationality == singaporeanNatl) || 
-        ((nationality /= singaporeanNatl) && (residentialStatus /= othersResidentialStatus))))
-
-  {- 
-    Car Loan is only eligible either if the borrower is Singaporean or Non-Singaporean but not labeled as 
-    Residential Status of Others:
-
-    Monthly Income should be at least $1,700.00 SGD:
-  -}
-  assertMsg (carLoanType <> " Loan Type is unallowed for Nationality: " <> nationality 
-    <> " with Residential Status: " <> residentialStatus)
-      ((loanType == carLoanType) && ((nationality == singaporeanNatl) || 
-        ((nationality /= singaporeanNatl) && (residentialStatus /= othersResidentialStatus))) &&
-          (monthlyIncome >= 1700.00))
+    _ -> assertMsg ("Unknown Loan Type: " <> loanType) False
 
   pure ()
 

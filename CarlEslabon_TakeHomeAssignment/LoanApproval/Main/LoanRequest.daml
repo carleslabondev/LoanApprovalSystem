@@ -3,6 +3,7 @@ module LoanApproval.Main.LoanRequest where
 import LoanApproval.Main.Loan
 import LoanApproval.Model.LoanApprovalModel
 import LoanApproval.Util.LoanRequestValidation
+import LoanApproval.Util.LoanRequestUtil
 
 template LoanRequest
   with
@@ -33,7 +34,24 @@ template LoanRequest
         create Loan with ..
 
     -- Reject Loan Request Choice:
-    choice RejectRequest : ()
+    choice RejectRequest : ContractId LoanRequest
       controller bank
       do
+        -- Loan Request should be under Pending status:
+        pendingStatus <- generateLoanRequestStatus 1000
+        assertMsg "Loan Request should be on Pending status" (status == pendingStatus)
+
+        -- Generate Loan Request Rejected Status:
+        updatedStatus <- generateLoanRequestStatus 2000
+
+        create this with status = updatedStatus
+
+    -- Delete Loan Request Choice:
+    choice DeleteRequest : ()
+      controller bank
+      do
+        -- Generate Loan Request Rejected Status:
+        rejectedStatus <- generateLoanRequestStatus 2000
+        assertMsg "Loan Request should be on Rejected status" (status == rejectedStatus)
+
         return ()

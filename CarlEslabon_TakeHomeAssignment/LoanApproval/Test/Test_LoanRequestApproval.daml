@@ -1,26 +1,50 @@
 module LoanApproval.Test.Test_LoanRequestApproval where
 
 import Daml.Script
+import DA.Date
 
 import LoanApproval.Main.LoanBorrower
-import LoanApproval.Model.LoanApprovalModel
-import LoanApproval.Test.Util.LoanApprovalTestUtil
+import LoanApproval.Main.LoanRequest
 
-test_LoanRequestApproval: Script ()
-test_LoanRequestApproval = script do
+import LoanApproval.Test.Util.LoanApprovalTestUtil
+import LoanApproval.Test.Data.LoanRequestApprovalData
+
+-- Simulate the testing for the creation of the Loan Request:
+test_LoanRequestCreation : Script (Party, Party, ContractId LoanRequest)
+test_LoanRequestCreation = script do
   [borrower, bank] <- generateParties ["Borrower", "Bank"]
 
-  let loanDetails = LoanDetails 
-        with amount = 10000.0, currency = "USD", loanType = "Personal",
-              loanPurpose = "Home Renovation", loanTerm = 36, interestRate = 0.5
-
-      borrowerDetails = BorrowerDetails
-        with nationality = "Singaporean", residentialStatus = "Citizen", 
-              maritalStatus = "Single", noOfDependents = 3
-        
-  loanReqCid <- submit borrower do createCmd LoanBorrower with ..
+  (borrowerDetails, employmentDetails, loanDetails) <- generateLoanRequestData
+  loanBorrowerCID <- submit borrower do createCmd LoanBorrower with ..
   
-  loanCid <- submit borrower do 
-    exerciseCmd loanReqCid CreateLoanRequest with loanReqId = "REQ-001", ..
+  loanRequestCID <- submit borrower do 
+    exerciseCmd loanBorrowerCID CreateLoanRequest with loanReqId = "58230947125683", ..
+
+  pure (borrower, bank, loanRequestCID)
+
+-- Simulate the testing for the approval of the Loan Request:
+test_LoanRequestApproval : Script ()
+test_LoanRequestApproval = script do
+  (borrower, bank, loanRequestCID) <- test_LoanRequestCreation
+
+  submit bank do 
+    exerciseCmd loanRequestCID ApproveRequest 
+      with loanId = "58230947125683", approvalDate = date 2025 Apr 7
+
+  pure ()
+
+-- Simulate the testing for the rejection of the Loan Request:
+test_LoanRequestRejection : Script (Party, Party, ContractId LoanRequest)
+test_LoanRequestRejection = script do
+  (borrower, bank, loanRequestCID) <- test_LoanRequestCreation
+  loanRequestCID <- submit bank do exerciseCmd loanRequestCID RejectRequest
+
+  pure (borrower, bank, loanRequestCID)
+
+-- Simulate the testing for the deletion of the Loan Request:
+test_LoanRequestDeletion : Script ()
+test_LoanRequestDeletion = script do
+  (borrower, bank, loanRequestCID) <- test_LoanRequestRejection
+  submit bank do exerciseCmd loanRequestCID DeleteRequest
 
   pure ()
