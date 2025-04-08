@@ -1,0 +1,43 @@
+module LoanRepayment.Util.LoanRequestConstant where
+
+-- Loan Request Status Values:
+loanRequestStatusIndex : [(Int, Text)]
+loanRequestStatusIndex = [(1000, "Pending"), (2000, "Rejected")]
+
+[pendingRequestStatus, rejectedRequestStatus] = map snd loanRequestStatusIndex
+
+-- Nationality Values:
+nationalityIndex : [(Text, Text)] 
+nationalityIndex = [("Singaporean", "Singaporean"), ("Malaysian", "Malaysian"), ("Indian", "Indian"), 
+  ("Filipino", "Filipino"), ("Indonesian", "Indonesian"), ("Chinese", "Chinese"), ("Others", "Others")]
+
+[singaporeanNatl, malaysianNatl, indianNatl, filipinoNatl, indonesianNatl, 
+  chineseNatl, othersNatl] = map snd nationalityIndex
+
+-- Residential Status Values:
+residentialStatusIndex : [(Text, Text)]
+residentialStatusIndex = [("Citizen", "Citizen"), ("Permanent Resident", "Permanent Resident"), 
+  ("Foreigner", "Foreigner"), ("Others", "Others")]
+
+[citizenResidentialStatus, permanentResidentialStatus, foreignerResidentialStatus, 
+  othersResidentialStatus] = map snd residentialStatusIndex
+
+-- Loan Type Values:
+loanTypeIndex : [(Text, Text)] 
+loanTypeIndex = [("Personal", "Personal"), ("Home", "Home"), ("Car", "Car"), ("Business", "Business")]
+
+[personalLoanType, homeLoanType, carLoanType, businessLoanType] = map snd loanTypeIndex
+
+-- Marital Status Values:
+maritalStatusIndex : [(Text, Text)]
+maritalStatusIndex = [("Single", "Single"), ("Married", "Married"), ("Divorced", "Divorced"), 
+  ("Widowed", "Widowed"), ("Separated", "Separated")]
+
+[singleStatus, marriedStatus, divorcedStatus, widowedStatus, separatedStatus] = map snd loanTypeIndex
+
+-- Employment Type Values:
+employmentTypeIndex : [(Text, Text)]
+employmentTypeIndex = [("Full-time", "Full-time"), ("Part-time", "Part-time"), 
+  ("Contract", "Contract"), ("Employed", "Employed")]
+
+[fullTimeEmployment, partTimeEmployment, contractEmployment, employedEmployment] = map snd employmentTypeIndex

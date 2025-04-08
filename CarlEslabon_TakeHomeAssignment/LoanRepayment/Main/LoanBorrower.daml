@@ -1,0 +1,46 @@
+module LoanRepayment.Main.LoanBorrower where
+
+import LoanRepayment.Main.LoanRequest
+import LoanRepayment.Main.LoanApplication
+
+import LoanRepayment.Model.LoanApprovalModel
+
+import LoanRepayment.Util.LoanRequestUtil
+import LoanRepayment.Util.LoanRequestValidation
+
+template LoanBorrower
+  with
+    bank : Party
+    borrower : Party
+    borrowerDetails : BorrowerDetails
+    employmentDetails : EmploymentDetails
+
+  where
+    signatory borrower
+    observer bank
+
+    key (bank, borrower) : LoanBorrowerKey
+    maintainer key._2
+
+    -- Create Loan Application Choice:
+    nonconsuming choice CreateLoanApplication : ContractId LoanApplication
+      with loanDetails : LoanDetails, loanAppId : Text
+      controller borrower
+      do
+        -- Create Loan Application Contract:
+        create LoanApplication with ..
+
+    -- Create Loan Request Choice:
+    nonconsuming choice CreateLoanRequest : ContractId LoanRequest
+      with loanDetails : LoanDetails, loanReqId : Text
+      controller borrower
+      do
+        -- Validate Loan Request:
+        let valDetails = GeneralValidationDetails with ..
+        validateLoanRequestCreation valDetails
+
+        -- Generate Loan Request Pending Status:
+        status <- generateLoanRequestStatus 1000
+
+        -- Create Loan Request Contract:
+        create LoanRequest with ..

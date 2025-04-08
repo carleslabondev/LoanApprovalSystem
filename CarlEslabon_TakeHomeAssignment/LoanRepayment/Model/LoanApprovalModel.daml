@@ -1,4 +1,4 @@
-module LoanDisbursementLimit.Model.LoanApprovalModel where
+module LoanRepayment.Model.LoanApprovalModel where
 
 -- Data Type Declaration for Template Keys:
 type LoanRequestKey = (Party, Party, Text, Text)

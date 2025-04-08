@@ -1,0 +1,4 @@
+module LoanRepayment.Model.RepaymentRestrictionModel where
+
+-- Data Type Declaration for Template Keys:
+type RepaymentRestrictionKey = (Party, Party, Text)

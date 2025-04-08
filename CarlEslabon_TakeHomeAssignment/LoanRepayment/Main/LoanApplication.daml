@@ -1,0 +1,30 @@
+module LoanRepayment.Main.LoanApplication where
+
+import LoanRepayment.Main.LoanLimit
+import LoanRepayment.Model.LoanApprovalModel
+
+template LoanApplication
+  with
+    borrower : Party
+    bank : Party
+    loanAppId: Text
+    loanDetails : LoanDetails
+    borrowerDetails : BorrowerDetails
+    employmentDetails : EmploymentDetails
+
+  where
+    signatory borrower
+    observer bank
+
+    key (bank, borrower, loanAppId) : LoanApplicationKey
+    maintainer key._2
+
+    -- Create Loan Limit Choice:
+    choice CreateLoanLimit : ContractId LoanLimit
+      with maxLoanAmount : Decimal
+      controller bank
+      do
+        assertMsg ("Max Loan Amount: " <> (show maxLoanAmount) <>
+          " should be greater than zero") (maxLoanAmount > 0.0)
+
+        create LoanLimit with loanLimitId = loanAppId, utilizedLoanAmount = 0.0, ..

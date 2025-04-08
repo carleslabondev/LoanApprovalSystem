@@ -1,0 +1,157 @@
+module LoanRepayment.Main.Loan where
+
+import LoanRepayment.Main.Token
+import LoanRepayment.Main.LoanLimit
+import LoanRepayment.Main.RepaymentRestriction
+
+import LoanRepayment.Model.LoanApprovalModel
+import LoanRepayment.Model.DisbursedTokenModel
+
+import LoanRepayment.Util.TokenUtil
+
+import DA.Optional
+import DA.Action
+
+template Loan
+  with
+    borrower : Party
+    bank : Party
+    loanId : Text
+    loanDetails : LoanDetails
+    borrowerDetails : BorrowerDetails
+    employmentDetails : EmploymentDetails
+    approvedLoanAmount : Decimal
+    totalDisbursedAmount : Decimal
+    totalRepaidAmount : Decimal
+
+  where
+    signatory borrower, bank
+
+    key (bank, borrower, loanId) : LoanKey
+    maintainer key._1
+
+    -- Disburse Token Choice:
+    choice Disburse : ContractId Token
+      with mintTokens: Decimal
+      controller bank, borrower
+      do
+        -- Create Disbursed Token Contract:
+        let disbursedTokenDets = DisbursedTokenDetails with ..
+        (tokenCid, updatedMintTokens) <- generateDisbursedToken disbursedTokenDets
+
+        -- Update Total Disbursed Amount:
+        create this with totalDisbursedAmount = updatedMintTokens
+
+        return tokenCid
+
+    -- Repay Loan Choice:
+    choice Repay : ()
+      with repaymentAmount : Decimal
+      controller borrower
+      do
+        isRepaymentRestrictionAvail <- lookupByKey @RepaymentRestriction (bank, borrower, loanId)
+
+        if isSome isRepaymentRestrictionAvail then
+          do
+            minRepayment <- fetchByKey @RepaymentRestriction (bank, borrower, loanId) >>=
+              (\repaymentRestriction -> do return repaymentRestriction._2.minRepayment)
+
+            isTokenAvail <- lookupByKey @Token (bank, borrower, loanId)
+
+            tokenBalance <- do
+              if isSome isTokenAvail then
+                do
+                  tokenBalance <- fetchByKey @Token (bank, borrower, loanId) >>=
+                    (\token -> do return token._2.tokenBalance)
+
+                  assertMsg ("Repayment amount: " <> (show repaymentAmount) <> " should be " <>
+                    "greater than zero and does not exceed token balance: " <> (show tokenBalance))
+                      (repaymentAmount > 0.0 && repaymentAmount <= tokenBalance &&
+                        repaymentAmount <= totalDisbursedAmount)
+
+                  return tokenBalance
+              else
+                do
+                  abort "Token not found"
+
+            assertMsg ("Repayment amount: " <> (show tokenBalance) <> " should be greater than zero, at " <>
+              "least: " <> (show minRepayment) <> " does not exceed approved loan amount: " <>
+                (show approvedLoanAmount)) (tokenBalance >= minRepayment &&
+                  tokenBalance <= approvedLoanAmount)
+
+            let updatedRepaidAmount = totalRepaidAmount + tokenBalance;
+                  amountToBePaid = updatedRepaidAmount - approvedLoanAmount
+
+            assertMsg ("Overall current repaid amount: " <> (show updatedRepaidAmount) <> " exceeds approved " <>
+              "loan amount: " <> (show approvedLoanAmount) <> ". Remaining amount to be paid is: " <>
+                (show amountToBePaid)) (updatedRepaidAmount <= approvedLoanAmount)
+
+            -- Update Token contract associated with the repayment process:
+            exerciseByKey @Token (bank, borrower, loanId) Burn with ..
+
+            -- Update total repaid amount from Loan contract:
+            create this with totalRepaidAmount = updatedRepaidAmount
+
+            return ()
+        else
+          do
+            abort "Repayment Restriction not found"
+
+        return ()
+
+    -- Delete Loan Choice
+    choice Delete : ()
+      controller bank
+      do
+        when (totalRepaidAmount == approvedLoanAmount && totalRepaidAmount == totalDisbursedAmount)
+          do
+            archive self
+            exerciseByKey @Token (bank, borrower, loanId) DeleteToken
+
+        exerciseByKey @LoanLimit (bank, borrower, loanId) UpdateLoanLimitFromRepayment with ..
+
+        exerciseByKey @RepaymentRestriction (bank, borrower, loanId)
+          UpdateRepaymentUponArchival with updatedMinRepayment = 0.0, ..
+
+        return ()
+
+    -- Update Approved Loan Amount Choice:
+    choice UpdateApprovedLoanAmount : ContractId Loan
+      with updatedApprovedLoanAmount : Decimal
+      controller bank
+      do
+        isRepaymentRestrictionAvail <- lookupByKey @RepaymentRestriction (bank, borrower, loanId)
+
+        create this with approvedLoanAmount = updatedApprovedLoanAmount
+
+    -- Create Repayment Restriction Choice:
+    nonconsuming choice CreateRepaymentRestriction : ContractId RepaymentRestriction
+      with minRepayment : Decimal
+      controller bank
+      do
+        assertMsg ("Minimum Repayment: " <> (show minRepayment) <> " should be greater than zero and " <>
+          "does not exceed approved loan limit: " <> (show approvedLoanAmount))
+            (minRepayment > 0.0 && minRepayment <= approvedLoanAmount)
+
+        create RepaymentRestriction with repaymentRestrictionId = loanId, ..
+
+    -- Update Repayment Restriction Choice:
+    nonconsuming choice UpdateRepaymentRestriction : ContractId RepaymentRestriction
+      with updatedMinRepayment : Decimal
+      controller bank
+      do
+        isRepaymentRestrictionAvail <- lookupByKey @RepaymentRestriction (bank, borrower, loanId)
+
+        if isSome isRepaymentRestrictionAvail then
+          do
+            repaymentRestriction <- fetchByKey @RepaymentRestriction (bank, borrower, loanId)
+
+            assertMsg ("Updated Minimum Repayment: " <> (show updatedMinRepayment) <> " should be greater than " <>
+              "zero and does not exceed approved loan limit: " <> (show approvedLoanAmount))
+                (updatedMinRepayment > 0.0 && updatedMinRepayment <= approvedLoanAmount)
+
+            archive repaymentRestriction._1
+            create repaymentRestriction._2 with minRepayment = updatedMinRepayment
+        else
+          do
+            abort "Repayment Restriction not found"

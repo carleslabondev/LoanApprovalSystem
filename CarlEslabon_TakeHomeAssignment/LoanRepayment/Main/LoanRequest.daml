@@ -1,0 +1,60 @@
+module LoanRepayment.Main.LoanRequest where
+
+import LoanRepayment.Main.Loan
+
+import LoanRepayment.Model.LoanApprovalModel
+
+import LoanRepayment.Util.LoanRequestValidation
+import LoanRepayment.Util.LoanRequestUtil
+
+template LoanRequest
+  with
+    borrower : Party
+    bank : Party
+    loanReqId : Text
+    loanDetails : LoanDetails
+    borrowerDetails : BorrowerDetails
+    employmentDetails : EmploymentDetails
+    status : Text
+
+  where
+    signatory borrower
+    observer bank
+
+    key (bank, borrower, loanReqId, status) : LoanRequestKey
+    maintainer key._2
+
+    -- Approve Loan Request Choice:
+    choice ApproveRequest : ContractId Loan
+      controller bank
+      do
+        -- Validate Loan Request:
+        let loanLimDet = LoanLimitValidationDetails with ..
+        (requestedLoanAmount, maxLoanAmount) <- validateLoanRequestApproval loanLimDet
+
+        -- Create Loan Contract:
+        let approvedLoanDet = GenerateApprovedLoanDetails with ..
+        generateApprovedLoan approvedLoanDet
+
+    -- Reject Loan Request Choice:
+    choice RejectRequest : ContractId LoanRequest
+      controller bank
+      do
+        -- Loan Request should be under Pending status:
+        pendingStatus <- generateLoanRequestStatus 1000
+        assertMsg "Loan Request should be on Pending status" (status == pendingStatus)
+
+        -- Generate Loan Request Rejected Status:
+        updatedStatus <- generateLoanRequestStatus 2000
+
+        create this with status = updatedStatus
+
+    -- Delete Loan Request Choice:
+    choice DeleteRequest : ()
+      controller bank
+      do
+        -- Generate Loan Request Rejected Status:
+        rejectedStatus <- generateLoanRequestStatus 2000
+        assertMsg "Loan Request should be on Rejected status" (status == rejectedStatus)
+
+        return ()

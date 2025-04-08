@@ -1,4 +1,4 @@
-module LoanDisbursementLimit.Model.DisbursedTokenModel where
+module LoanRepayment.Model.DisbursedTokenModel where
 
 -- Data Type Declaration for Template Keys:
 type TokenKey = (Party, Party, Text)

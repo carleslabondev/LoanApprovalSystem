@@ -1,0 +1,218 @@
+module LoanRepayment.Util.LoanRequestValidation where
+
+import LoanRepayment.Main.LoanLimit
+
+import LoanRepayment.Model.LoanApprovalModel
+
+import LoanRepayment.Util.LoanRequestUtil
+import LoanRepayment.Util.LoanRequestConstant
+
+import DA.Text as DT
+import DA.Map as DM
+import DA.Optional
+
+-- Validate Loan Request Creation:
+validateLoanRequestCreation : GeneralValidationDetails -> Update ()
+validateLoanRequestCreation genValDet = do
+    let borrower = genValDet.borrower; bank = genValDet.bank; loanReqId = genValDet.loanReqId; 
+          borrowerDetails = genValDet.borrowerDetails; loanDetails = genValDet.loanDetails; 
+            employmentDetails = genValDet.employmentDetails
+
+    let [borrowerVal, bankVal] = generateTextFromParty [borrower, bank]
+
+    -- Validate that the Borrower is not the same with the Bank:
+    assertMsg ("Borrower: " <> borrowerVal <> 
+      " should not be equal to Bank: " <> bankVal) (borrower /= bank)
+
+    -- Validate Borrower Details:
+    validateBorrowerDetails borrowerDetails
+
+    -- Validate Employment Details:
+    validateEmploymentDetails employmentDetails
+
+    -- Validate Loan Details:
+    validateLoanDetails genValDet
+
+    pure ()
+
+-- Validate Loan Request Approval:
+validateLoanRequestApproval : LoanLimitValidationDetails -> Update (Decimal, Decimal)
+validateLoanRequestApproval loanLimDet = do
+  (requestedLoanAmount, maxLoanAmount) <- validateRequestedLoanAmount loanLimDet
+
+  pure (requestedLoanAmount, maxLoanAmount)
+
+{- 
+  Validate the Loan Request Data Records:
+  Borrower Details
+-}
+validateBorrowerDetails : BorrowerDetails -> Update ()
+validateBorrowerDetails borrowerDetails = do
+  let nationality = borrowerDetails.nationality
+      residentialStatus = borrowerDetails.residentialStatus
+      maritalStatus = borrowerDetails.maritalStatus
+
+  validateNationality nationality residentialStatus
+  validateResidentialStatus residentialStatus
+  validateMaritalStatus maritalStatus
+
+  pure ()
+
+-- Validate Nationality:
+validateNationality : Text -> Text -> Update ()
+validateNationality keyVal residentialStatus = do
+  let isNationalityAvail = DM.lookup keyVal (fromList nationalityIndex)
+      nationality = fromOptional "Not Found" isNationalityAvail
+
+  assertMsg "Non-Existent Nationality" (nationality /= "Not Found")
+
+  -- Singaporean Nationality must be declared as Residential Type of Citizen:
+  assertMsg (nationality <> " Nationality must have Residential Type: " <> citizenResidentialStatus)
+    ((nationality == singaporeanNatl) && (residentialStatus == citizenResidentialStatus))
+
+  pure ()
+
+-- Validate Residential Status:
+validateResidentialStatus : Text -> Update ()
+validateResidentialStatus keyVal = do
+  let fieldVal = "Residential Status"
+  validateValueFromInputKey keyVal residentialStatusIndex fieldVal
+
+  pure ()
+
+-- Validate Marital Status:
+validateMaritalStatus : Text -> Update ()
+validateMaritalStatus keyVal = do
+  let fieldVal = "Marital Status"
+  validateValueFromInputKey keyVal maritalStatusIndex fieldVal
+
+  pure ()
+
+{- 
+  Validate the Loan Request Data Records:
+  Employment Details
+-}
+validateEmploymentDetails : EmploymentDetails -> Update ()
+validateEmploymentDetails employmentDetails = do
+  let occupation = employmentDetails.occupation
+      typeOfEmployment = employmentDetails.typeOfEmployment
+      lengthOfEmployment = employmentDetails.lengthOfEmployment
+
+  validateOccupation occupation
+  validateEmploymentType typeOfEmployment
+  validateEmploymentLength lengthOfEmployment
+
+  pure ()
+
+-- Validate Occupation:
+validateOccupation : Text -> Update ()
+validateOccupation occupation = do
+  let occupationLength = DT.length occupation
+
+  assertMsg "Occupation should not be empty" (not $ isEmpty occupation)
+  assertMsg "Occupation length should not exceed to 100 characters" 
+    (occupationLength > 0 && occupationLength <= 100)
+
+  pure ()
+
+-- Validate Employment Type:
+validateEmploymentType : Text -> Update ()
+validateEmploymentType keyVal = do
+  let fieldVal = "Employment Type"
+  validateValueFromInputKey keyVal employmentTypeIndex fieldVal
+
+  pure ()
+
+-- Validate Employment Length:
+validateEmploymentLength : Int -> Update ()
+validateEmploymentLength lengthOfEmployment = do
+  assertMsg "Length of Employment should be within 6 to 240 months" 
+    (lengthOfEmployment >= 6 && lengthOfEmployment <= 240)
+
+  pure ()
+
+{- 
+  Validate the Loan Request Data Records:
+  Loan Details
+-}
+validateLoanDetails : GeneralValidationDetails -> Update ()
+validateLoanDetails genValDet = do
+  let loanType = genValDet.loanDetails.loanType
+      loanAmount = genValDet.loanDetails.amount
+
+      nationality = genValDet.borrowerDetails.nationality; 
+      residentialStatus = genValDet.borrowerDetails.residentialStatus
+
+  validateLoanType loanType nationality residentialStatus
+
+  pure ()
+
+-- Validate Requested Loan Amount:
+validateRequestedLoanAmount : LoanLimitValidationDetails -> Update (Decimal, Decimal)
+validateRequestedLoanAmount loanLimDet = do
+  let borrower = loanLimDet.borrower; bank = loanLimDet.bank; 
+        loanReqId = loanLimDet.loanReqId; requestedLoanAmount = loanLimDet.loanDetails.amount
+
+  isLoanLimitAvail <- lookupByKey @LoanLimit (bank, borrower, loanReqId)
+
+  (requestedLoanAmount, maxLoanAmount) <- do
+    if isSome isLoanLimitAvail then
+      do
+        maxLoanAmount <- fetchByKey @LoanLimit (bank, borrower, loanReqId) >>= 
+          (\loanLimit -> do return loanLimit._2.maxLoanAmount)
+
+        assertMsg ("Requested amount: " <> (show requestedLoanAmount) <> " should be greater than zero and does " <> 
+          "not exceed max loan amount: " <> (show maxLoanAmount)) (requestedLoanAmount > 0.0 && 
+            requestedLoanAmount <= maxLoanAmount)
+
+        return (requestedLoanAmount, maxLoanAmount)
+    else
+      do
+        abort "Loan Limit not found"
+
+  pure (requestedLoanAmount, maxLoanAmount)
+
+-- Validate Loan Type:
+validateLoanType : Text -> Text -> Text -> Update ()
+validateLoanType loanType nationality residentialStatus = do
+  let fieldVal = "Loan Type"
+  validateValueFromInputKey loanType loanTypeIndex fieldVal
+
+  case loanType of
+    {- 
+      Personal/Business Loan is only eligible either if the borrower is Singaporean or Non-Singaporean but with 
+      neither Residential Status of Foreigner nor Others:
+    -}
+    lt | lt == personalLoanType || lt == businessLoanType ->
+      assertMsg (lt <> " Loan Type is unallowed for Nationality: " <> nationality 
+        <> " with Residential Status: " <> residentialStatus)
+        ((nationality == singaporeanNatl) || 
+        ((nationality /= singaporeanNatl) && 
+          (residentialStatus /= foreignerResidentialStatus && 
+          residentialStatus /= othersResidentialStatus)))
+
+    {- 
+      Home/Car Loan is only eligible either if the borrower is Singaporean or Non-Singaporean but not labeled as 
+      Residential Status of Others:
+    -}
+    lt | lt == homeLoanType || lt == carLoanType ->
+      assertMsg (lt <> " Loan Type is unallowed for Nationality: " <> nationality 
+        <> " with Residential Status: " <> residentialStatus)
+        ((nationality == singaporeanNatl) || 
+        ((nationality /= singaporeanNatl) && 
+          (residentialStatus /= othersResidentialStatus)))
+
+    _ -> assertMsg ("Unknown Loan Type: " <> loanType) False
+
+  pure ()
+
+{- 
+  Validate the value from the input key:
+-}
+validateValueFromInputKey keyVal index fieldVal = do
+  let isFieldValAvail = DM.lookup keyVal (fromList index)
+      parseFieldVal = fromOptional "Not Found" isFieldValAvail
+
+  assertMsg ("Non-Existent: " <> fieldVal) (parseFieldVal /= "Not Found")
+
+  pure ()

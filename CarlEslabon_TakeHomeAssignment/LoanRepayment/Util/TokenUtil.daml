@@ -1,0 +1,42 @@
+module LoanRepayment.Util.TokenUtil where
+
+import LoanRepayment.Main.Token
+import LoanRepayment.Model.DisbursedTokenModel
+
+import DA.Optional
+
+-- Generate the Disbursed Token:
+generateDisbursedToken : DisbursedTokenDetails -> Update (ContractId Token, Decimal)
+generateDisbursedToken disbursedTokenDets = do
+  let borrower = disbursedTokenDets.borrower; bank = disbursedTokenDets.bank;
+        loanId = disbursedTokenDets.loanId; mintTokens = disbursedTokenDets.mintTokens;
+          approvedLoanAmount = disbursedTokenDets.approvedLoanAmount
+
+  assertMsg ("Mint tokens: " <> (show mintTokens) <> " should be " <>
+    "greater than zero and does not exceed approved loan amount: " <> (show approvedLoanAmount))
+      (mintTokens > 0.0 && mintTokens <= approvedLoanAmount)
+
+  isTokenAvail <- lookupByKey @Token (bank, borrower, loanId)
+
+  (tokenCid, updatedMintTokens) <- do
+    if isSome isTokenAvail then
+      do
+        tokenBalance <- fetchByKey @Token (bank, borrower, loanId) >>=
+          (\token -> do return token._2.tokenBalance)
+
+        let updatedTokenBalance = tokenBalance + mintTokens;
+
+        assertMsg ("Overall current token balance: " <> (show updatedTokenBalance) <> " should be " <>
+          "greater than zero and does not exceed approved loan amount: " <> (show approvedLoanAmount))
+            (updatedTokenBalance > 0.0 && updatedTokenBalance <= approvedLoanAmount)
+
+        tokenCid <- exerciseByKey @Token (bank, borrower, loanId) Mint with ..
+
+        pure (tokenCid, updatedTokenBalance)
+    else
+      do
+        tokenCid <- create Token with tokenId = loanId, tokenBalance = mintTokens, ..
+
+        pure (tokenCid, mintTokens)
+
+  pure (tokenCid, updatedMintTokens)

@@ -1,0 +1,36 @@
+module LoanRepayment.Main.LoanLimit where
+
+import LoanRepayment.Model.LoanApprovalModel
+
+template LoanLimit
+  with
+    bank : Party
+    borrower : Party
+    loanLimitId : Text
+    maxLoanAmount : Decimal
+    utilizedLoanAmount : Decimal
+
+  where
+    signatory bank
+    observer borrower
+
+    key (bank, borrower, loanLimitId) : LoanLimitKey
+    maintainer key._1
+
+    -- Update Loan Limit from Loan Approval:
+    choice UpdateLoanLimitFromApproval : ContractId LoanLimit
+      with requestedLoanAmount : Decimal
+      controller bank
+      do
+        let updatedUtilizedLoanAmount = utilizedLoanAmount + requestedLoanAmount
+
+        create this with utilizedLoanAmount = updatedUtilizedLoanAmount
+
+    -- Update Loan Limit from Loan Repayment:
+    choice UpdateLoanLimitFromRepayment : ContractId LoanLimit
+      with totalRepaidAmount : Decimal
+      controller bank
+      do
+        let updatedUtilizedLoanAmount = utilizedLoanAmount - totalRepaidAmount
+
+        create this with utilizedLoanAmount = updatedUtilizedLoanAmount
