@@ -17,11 +17,6 @@ template RepaymentRestriction
 
     -- Update Repayment Restriction upon Loan Archival Choice:
     choice UpdateRepaymentUponArchival : ContractId RepaymentRestriction
-      with updatedMinRepayment : Decimal, approvedLoanAmount : Decimal
       controller bank
       do
-        assertMsg ("Updated Minimum Repayment: " <> (show updatedMinRepayment) <> " should be greater than " <>
-          "zero and does not exceed approved loan limit: " <> (show approvedLoanAmount))
-            (updatedMinRepayment > 0.0 && updatedMinRepayment <= approvedLoanAmount)
-
-        create this with minRepayment = updatedMinRepayment
+        create this with minRepayment = 0.0

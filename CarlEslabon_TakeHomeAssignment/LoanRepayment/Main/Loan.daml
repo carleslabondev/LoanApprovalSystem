@@ -109,9 +109,7 @@ template Loan
             exerciseByKey @Token (bank, borrower, loanId) DeleteToken
 
         exerciseByKey @LoanLimit (bank, borrower, loanId) UpdateLoanLimitFromRepayment with ..
-
-        exerciseByKey @RepaymentRestriction (bank, borrower, loanId)
-          UpdateRepaymentUponArchival with updatedMinRepayment = 0.0, ..
+        exerciseByKey @RepaymentRestriction (bank, borrower, loanId) UpdateRepaymentUponArchival
 
         return ()
 
