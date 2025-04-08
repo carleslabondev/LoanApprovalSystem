@@ -1,0 +1,21 @@
+module LoanDisbursementLimit.Test.Data.LoanRequestApprovalData where
+
+import Daml.Script
+
+import LoanDisbursementLimit.Model.LoanApprovalModel
+
+generateLoanRequestData : Script (BorrowerDetails, EmploymentDetails, LoanDetails)
+generateLoanRequestData = do
+  let borrowerDetails = BorrowerDetails
+        with nationality = "Singaporean", residentialStatus = "Citizen", 
+              maritalStatus = "Single", noOfDependents = 3
+
+      employmentDetails = EmploymentDetails 
+        with occupation = "Software Engineer", typeOfEmployment = "Full-time",
+              lengthOfEmployment = 36, monthlyIncome = 5500.00
+
+      loanDetails = LoanDetails 
+        with amount = 300.0, loanType = "Personal",
+              loanPurpose = "Home Renovation", loanTerm = 36, interestRate = 0.5
+
+  pure (borrowerDetails, employmentDetails, loanDetails)

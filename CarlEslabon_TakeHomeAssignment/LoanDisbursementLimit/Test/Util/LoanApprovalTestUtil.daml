@@ -1,0 +1,9 @@
+module LoanDisbursementLimit.Test.Util.LoanApprovalTestUtil where
+
+import Daml.Script
+import DA.Text
+
+generateParties: [Text] -> Script [Party]
+generateParties parties = do
+  forA parties (\party -> allocatePartyWithHint party 
+    (PartyIdHint (asciiToLower party)))

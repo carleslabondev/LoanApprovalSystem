@@ -1,0 +1,79 @@
+module LoanDisbursementLimit.Test.Test_LoanRequestApproval where
+
+import Daml.Script
+
+import LoanDisbursementLimit.Main.LoanBorrower
+import LoanDisbursementLimit.Main.LoanRequest
+import LoanDisbursementLimit.Main.LoanApplication
+import LoanDisbursementLimit.Main.LoanLimit
+import LoanDisbursementLimit.Main.Loan
+
+import LoanDisbursementLimit.Model.LoanApprovalModel
+
+import LoanDisbursementLimit.Test.Util.LoanApprovalTestUtil
+import LoanDisbursementLimit.Test.Data.LoanRequestApprovalData
+
+-- Simulate the testing for the creation of the Loan Application:
+test_LoanRequestApplication : Script (Party, Party, LoanDetails, ContractId LoanBorrower, ContractId LoanApplication)
+test_LoanRequestApplication = script do
+  [borrower, bank] <- generateParties ["Borrower", "Bank"]
+
+  (borrowerDetails, employmentDetails, loanDetails) <- generateLoanRequestData
+  loanBorrowerCID <- submit borrower do createCmd LoanBorrower with ..
+  
+  loanApplicationCID <- submit borrower do 
+    exerciseCmd loanBorrowerCID CreateLoanApplication with loanAppId = "58230947125683", ..
+
+  pure (borrower, bank, loanDetails, loanBorrowerCID, loanApplicationCID)
+
+-- Simulate the testing for the creation of the Loan Limit:
+test_LoanLimitCreation : Script (Party, Party, LoanDetails, ContractId LoanBorrower, ContractId LoanLimit)
+test_LoanLimitCreation = script do
+  (borrower, bank, loanDetails, loanBorrowerCID, loanApplicationCID) <- test_LoanRequestApplication
+  
+  loanLimitCID <- submit bank do 
+    exerciseCmd loanApplicationCID CreateLoanLimit with maxLoanAmount = 1000.00, ..
+
+  pure (borrower, bank, loanDetails, loanBorrowerCID, loanLimitCID)
+
+-- Simulate the testing for the creation of the Loan Request:
+test_LoanRequestCreation : Script (Party, Party, ContractId LoanRequest)
+test_LoanRequestCreation = script do
+  (borrower, bank, loanDetails, loanBorrowerCID, loanLimitCID) <- test_LoanLimitCreation
+  
+  loanRequestCID <- submit borrower do 
+    exerciseCmd loanBorrowerCID CreateLoanRequest with loanReqId = "58230947125683", ..
+
+  pure (borrower, bank, loanRequestCID)
+
+-- Simulate the testing for the approval of the Loan Request:
+test_LoanRequestApproval : Script (Party, Party, ContractId Loan)
+test_LoanRequestApproval = script do
+  (borrower, bank, loanRequestCID) <- test_LoanRequestCreation
+  loanCID <- submit bank do exerciseCmd loanRequestCID ApproveRequest
+
+  pure (borrower, bank, loanCID)
+
+-- Simulate the testing for the Token Disbursement:
+test_TokenDisbursement : Script ()
+test_TokenDisbursement = script do
+  (borrower, bank, loanCID) <- test_LoanRequestApproval
+  
+  let loanId = "58230947125683"
+  submitMulti [bank, borrower] [] do exerciseCmd loanCID Disburse with mintTokens = 100.0
+
+  Some loanCID <- queryContractKey @Loan bank (bank, borrower, loanId)
+  loanCID <- submitMulti [bank, borrower] [] do exerciseCmd loanCID._1 Disburse with mintTokens = 100.0
+
+  Some loanCID <- queryContractKey @Loan bank (bank, borrower, loanId)
+  submitMulti [bank, borrower] [] do exerciseCmd loanCID._1 Disburse with mintTokens = 100.0
+
+  -- Invalid transaction with zero or negative mint token value:
+  Some loanCID <- queryContractKey @Loan bank (bank, borrower, loanId)
+  submitMultiMustFail [bank, borrower] [] do exerciseCmd loanCID._1 Disburse with mintTokens = 0.0
+
+  -- Invalid transaction with the total disbursed amount exceeding the approved loan amount:
+  Some loanCID <- queryContractKey @Loan bank (bank, borrower, loanId)
+  submitMultiMustFail [bank, borrower] [] do exerciseCmd loanCID._1 Disburse with mintTokens = 100.0
+
+  pure ()

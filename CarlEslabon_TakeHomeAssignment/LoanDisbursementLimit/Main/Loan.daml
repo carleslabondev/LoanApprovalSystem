@@ -14,6 +14,7 @@ template Loan
     borrowerDetails : BorrowerDetails
     employmentDetails : EmploymentDetails
     approvedLoanAmount : Decimal
+    totalDisbursedAmount : Decimal
 
   where
     signatory borrower, bank
@@ -22,13 +23,18 @@ template Loan
     maintainer key._1
 
     -- Disburse Token Choice:
-    nonconsuming choice Disburse : ContractId Token
+    choice Disburse : ContractId Token
       with mintTokens: Decimal
       controller bank, borrower
       do
         -- Create Disbursed Token Contract:
         let disbursedTokenDets = DisbursedTokenDetails with ..
-        generateDisbursedToken disbursedTokenDets
+        (tokenCid, updatedMintTokens) <- generateDisbursedToken disbursedTokenDets
+
+        -- Update Total Disbursed Amount:
+        create this with totalDisbursedAmount = updatedMintTokens
+
+        return tokenCid
 
     -- Update Approved Loan Amount Choice:
     choice UpdateApprovedLoanAmount : ContractId Loan

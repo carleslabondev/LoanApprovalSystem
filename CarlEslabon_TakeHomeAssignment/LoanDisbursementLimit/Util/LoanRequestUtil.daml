@@ -44,4 +44,6 @@ generateApprovedLoan approvedLoanDet = do
       exerciseByKey @Loan (bank, borrower, loanReqId) UpdateApprovedLoanAmount with ..
   else
     do
-      create Loan with loanId = loanReqId, approvedLoanAmount = requestedLoanAmount, ..
+      create Loan 
+        with loanId = loanReqId, approvedLoanAmount = requestedLoanAmount, 
+              totalDisbursedAmount = 0.0, ..

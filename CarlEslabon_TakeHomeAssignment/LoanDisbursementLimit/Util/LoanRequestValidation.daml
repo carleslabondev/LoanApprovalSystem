@@ -163,7 +163,7 @@ validateRequestedLoanAmount loanLimDet = do
 
         assertMsg ("Requested amount: " <> (show requestedLoanAmount) <> " should be greater than zero and does " <> 
           "not exceed max loan amount: " <> (show maxLoanAmount)) (requestedLoanAmount > 0.0 && 
-            requestedLoanAmount <= requestedLoanAmount)
+            requestedLoanAmount <= maxLoanAmount)
 
         return (requestedLoanAmount, maxLoanAmount)
     else
