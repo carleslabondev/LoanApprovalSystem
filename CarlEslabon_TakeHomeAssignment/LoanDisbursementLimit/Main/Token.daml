@@ -1,0 +1,25 @@
+module LoanDisbursementLimit.Main.Token where
+
+import LoanDisbursementLimit.Model.LoanApprovalModel
+
+template Token
+  with
+    borrower : Party
+    bank : Party
+    tokenId: Text
+    tokenBalance : Decimal
+
+  where
+    signatory borrower, bank
+
+    key (bank, borrower, tokenId) : TokenKey
+    maintainer key._1
+
+    -- Mint Token Choice:
+    choice Mint : ContractId Token
+      with mintTokens: Decimal
+      controller bank, borrower
+      do
+        let updatedTokenBalance = tokenBalance + mintTokens
+        
+        create this with tokenBalance = updatedTokenBalance

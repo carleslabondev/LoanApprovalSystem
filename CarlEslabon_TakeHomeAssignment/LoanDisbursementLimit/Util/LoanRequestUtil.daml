@@ -1,0 +1,47 @@
+module LoanDisbursementLimit.Util.LoanRequestUtil where
+
+import DA.Map as DM (lookup, fromList)
+import DA.Optional
+
+import LoanDisbursementLimit.Main.Loan
+import LoanDisbursementLimit.Model.LoanApprovalModel
+import LoanDisbursementLimit.Util.LoanRequestConstant
+
+-- Generate Text from Party:
+generateTextFromParty : [Party] -> [Text]
+generateTextFromParty parties = do map partyToText parties
+
+-- Generate Loan Request Status:
+generateLoanRequestStatus keyVal = do
+  let isStatusAvail = DM.lookup keyVal (fromList loanRequestStatusIndex)
+      status = fromOptional "Not Found" isStatusAvail
+
+  assertMsg "Non-Existent Loan Request Status" (status /= "Not Found")
+
+  return status
+
+-- Generate the Approved Loan Contract:
+generateApprovedLoan : GenerateApprovedLoanDetails -> Update (ContractId Loan)
+generateApprovedLoan approvedLoanDet = do
+  let borrower = approvedLoanDet.borrower; bank = approvedLoanDet.bank; loanReqId = approvedLoanDet.loanReqId;
+        requestedLoanAmount = approvedLoanDet.requestedLoanAmount; maxLoanAmount = approvedLoanDet.maxLoanAmount;
+          loanDetails = approvedLoanDet.loanDetails; borrowerDetails = approvedLoanDet.borrowerDetails;
+            employmentDetails = approvedLoanDet.employmentDetails
+
+  isLoanAvail <- lookupByKey @Loan (bank, borrower, loanReqId)
+
+  if isSome isLoanAvail then
+    do
+      approvedLoanAmount <- fetchByKey @Loan (bank, borrower, loanReqId) >>= 
+        (\loan -> do return loan._2.approvedLoanAmount)
+
+      let updatedApprovedLoanAmount = approvedLoanAmount + requestedLoanAmount;
+
+      assertMsg ("Overall current pre-approved amount: " <> (show updatedApprovedLoanAmount) <> " should be " <> 
+        "greater than zero and does not exceed max loan amount: " <> (show maxLoanAmount)) 
+          (updatedApprovedLoanAmount > 0.0 && updatedApprovedLoanAmount <= maxLoanAmount)
+
+      exerciseByKey @Loan (bank, borrower, loanReqId) UpdateApprovedLoanAmount with ..
+  else
+    do
+      create Loan with loanId = loanReqId, approvedLoanAmount = requestedLoanAmount, ..

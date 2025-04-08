@@ -1,0 +1,71 @@
+module LoanDisbursementLimit.Model.LoanApprovalModel where
+
+-- Data Type Declaration for Template Keys:
+type LoanRequestKey = (Party, Party, Text, Text)
+type LoanApplicationKey = (Party, Party, Text)
+type LoanLimitKey = (Party, Party, Text)
+type LoanBorrowerKey = (Party, Party)
+type LoanKey = (Party, Party, Text)
+
+type TokenKey = (Party, Party, Text)
+
+-- Data Record for Borrower Details:
+data BorrowerDetails = BorrowerDetails 
+  with
+    nationality: Text
+    residentialStatus: Text
+    maritalStatus: Text
+    noOfDependents: Int
+  deriving (Eq, Show)
+
+-- Data Record for Employment Details:
+data EmploymentDetails = EmploymentDetails 
+  with
+    occupation: Text
+    typeOfEmployment: Text
+    lengthOfEmployment: Int
+    monthlyIncome: Decimal
+  deriving (Eq, Show)
+
+-- Data Record for Loan Details:
+data LoanDetails = LoanDetails 
+  with
+    amount : Decimal
+    loanPurpose : Text
+    loanTerm : Int
+    loanType : Text
+    interestRate : Decimal
+  deriving (Eq, Show)
+
+-- Data Record for General Validation Details:
+data GeneralValidationDetails = GeneralValidationDetails 
+  with
+    borrower : Party
+    bank : Party
+    loanReqId : Text
+    borrowerDetails : BorrowerDetails
+    loanDetails : LoanDetails
+    employmentDetails : EmploymentDetails
+  deriving (Eq, Show)
+
+-- Data Record for Loan Limit Validation:
+data LoanLimitValidationDetails = LoanLimitValidationDetails 
+  with
+    borrower : Party
+    bank : Party
+    loanReqId : Text
+    loanDetails : LoanDetails
+  deriving (Eq, Show)
+
+-- Data Record for Approved Loan Generation:
+data GenerateApprovedLoanDetails = GenerateApprovedLoanDetails
+  with
+    borrower : Party
+    bank : Party
+    loanReqId : Text
+    requestedLoanAmount : Decimal
+    maxLoanAmount : Decimal
+    loanDetails : LoanDetails
+    borrowerDetails : BorrowerDetails
+    employmentDetails : EmploymentDetails
+  deriving (Eq, Show)

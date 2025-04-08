@@ -1,0 +1,38 @@
+module LoanDisbursementLimit.Main.Loan where
+
+import LoanDisbursementLimit.Main.Token
+import LoanDisbursementLimit.Model.LoanApprovalModel
+import LoanDisbursementLimit.Model.DisbursedTokenModel
+import LoanDisbursementLimit.Util.TokenUtil
+
+template Loan
+  with
+    borrower : Party
+    bank : Party
+    loanId : Text
+    loanDetails : LoanDetails
+    borrowerDetails : BorrowerDetails
+    employmentDetails : EmploymentDetails
+    approvedLoanAmount : Decimal
+
+  where
+    signatory borrower, bank
+
+    key (bank, borrower, loanId) : LoanKey
+    maintainer key._1
+
+    -- Disburse Token Choice:
+    nonconsuming choice Disburse : ContractId Token
+      with mintTokens: Decimal
+      controller bank, borrower
+      do
+        -- Create Disbursed Token Contract:
+        let disbursedTokenDets = DisbursedTokenDetails with ..
+        generateDisbursedToken disbursedTokenDets
+
+    -- Update Approved Loan Amount Choice:
+    choice UpdateApprovedLoanAmount : ContractId Loan
+      with updatedApprovedLoanAmount : Decimal
+      controller bank
+      do
+        create this with approvedLoanAmount = updatedApprovedLoanAmount

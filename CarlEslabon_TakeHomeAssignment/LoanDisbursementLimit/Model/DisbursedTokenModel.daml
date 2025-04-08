@@ -1,0 +1,11 @@
+module LoanDisbursementLimit.Model.DisbursedTokenModel where
+
+-- Data Record for Disbursed Token:
+data DisbursedTokenDetails = DisbursedTokenDetails
+  with
+    borrower : Party
+    bank : Party
+    loanId : Text
+    mintTokens : Decimal
+    approvedLoanAmount : Decimal
+  deriving (Eq, Show)

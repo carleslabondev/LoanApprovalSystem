@@ -27,7 +27,7 @@ template LoanBorrower
       controller borrower
       do
         -- Validate Loan Request:
-        validateLoanRequest borrower bank borrowerDetails loanDetails employmentDetails
+        validateLoanRequestCreation borrower bank borrowerDetails loanDetails employmentDetails
 
         -- Generate Loan Request Pending Status:
         status <- generateLoanRequestStatus 1000

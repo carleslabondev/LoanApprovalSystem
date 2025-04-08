@@ -1,15 +1,17 @@
-module LoanApproval.Main.LoanRequest where
+module LoanDisbursementLimit.Main.LoanRequest where
 
-import LoanApproval.Main.Loan
-import LoanApproval.Model.LoanApprovalModel
-import LoanApproval.Util.LoanRequestValidation
-import LoanApproval.Util.LoanRequestUtil
+import LoanDisbursementLimit.Main.Loan
+
+import LoanDisbursementLimit.Model.LoanApprovalModel
+
+import LoanDisbursementLimit.Util.LoanRequestValidation
+import LoanDisbursementLimit.Util.LoanRequestUtil
 
 template LoanRequest
   with
     borrower : Party
     bank : Party
-    loanReqId: Text
+    loanReqId : Text
     loanDetails : LoanDetails
     borrowerDetails : BorrowerDetails
     employmentDetails : EmploymentDetails
@@ -22,16 +24,17 @@ template LoanRequest
     key (bank, borrower, loanReqId, status) : LoanRequestKey
     maintainer key._2
 
-    -- Accept Loan Request Choice:
+    -- Approve Loan Request Choice:
     choice ApproveRequest : ContractId Loan
-      with loanId : Text, approvalDate : Date
       controller bank
       do
         -- Validate Loan Request:
-        validateLoanRequestCreation borrower bank borrowerDetails loanDetails employmentDetails
+        let loanLimDet = LoanLimitValidationDetails with ..
+        (requestedLoanAmount, maxLoanAmount) <- validateLoanRequestApproval loanLimDet
 
         -- Create Loan Contract:
-        create Loan with ..
+        let approvedLoanDet = GenerateApprovedLoanDetails with ..
+        generateApprovedLoan approvedLoanDet
 
     -- Reject Loan Request Choice:
     choice RejectRequest : ContractId LoanRequest

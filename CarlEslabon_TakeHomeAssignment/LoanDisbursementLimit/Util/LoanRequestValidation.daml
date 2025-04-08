@@ -1,16 +1,23 @@
-module LoanApproval.Util.LoanRequestValidation where
+module LoanDisbursementLimit.Util.LoanRequestValidation where
 
-import LoanApproval.Util.LoanRequestUtil
-import LoanApproval.Model.LoanApprovalModel
-import LoanApproval.Util.LoanRequestConstant
+import LoanDisbursementLimit.Main.LoanLimit
+
+import LoanDisbursementLimit.Model.LoanApprovalModel
+
+import LoanDisbursementLimit.Util.LoanRequestUtil
+import LoanDisbursementLimit.Util.LoanRequestConstant
 
 import DA.Text as DT
 import DA.Map as DM
 import DA.Optional
 
--- Validate Loan Request:
-validateLoanRequestCreation : Party -> Party -> BorrowerDetails -> LoanDetails -> EmploymentDetails -> Update ()
-validateLoanRequestCreation borrower bank borrowerDetails loanDetails employmentDetails = do
+-- Validate Loan Request Creation:
+validateLoanRequestCreation : GeneralValidationDetails -> Update ()
+validateLoanRequestCreation genValDet = do
+    let borrower = genValDet.borrower; bank = genValDet.bank; loanReqId = genValDet.loanReqId; 
+          borrowerDetails = genValDet.borrowerDetails; loanDetails = genValDet.loanDetails; 
+            employmentDetails = genValDet.employmentDetails
+
     let [borrowerVal, bankVal] = generateTextFromParty [borrower, bank]
 
     -- Validate that the Borrower is not the same with the Bank:
@@ -24,9 +31,16 @@ validateLoanRequestCreation borrower bank borrowerDetails loanDetails employment
     validateEmploymentDetails employmentDetails
 
     -- Validate Loan Details:
-    validateLoanDetails loanDetails borrowerDetails employmentDetails
-  
+    validateLoanDetails genValDet
+
     pure ()
+
+-- Validate Loan Request Approval:
+validateLoanRequestApproval : LoanLimitValidationDetails -> Update (Decimal, Decimal)
+validateLoanRequestApproval loanLimDet = do
+  (requestedLoanAmount, maxLoanAmount) <- validateRequestedLoanAmount loanLimDet
+
+  pure (requestedLoanAmount, maxLoanAmount)
 
 {- 
   Validate the Loan Request Data Records:
@@ -121,16 +135,42 @@ validateEmploymentLength lengthOfEmployment = do
   Validate the Loan Request Data Records:
   Loan Details
 -}
-validateLoanDetails : LoanDetails -> BorrowerDetails -> EmploymentDetails -> Update ()
-validateLoanDetails loanDetails borrowerDetails employmentDetails = do
-  let loanType = loanDetails.loanType
+validateLoanDetails : GeneralValidationDetails -> Update ()
+validateLoanDetails genValDet = do
+  let loanType = genValDet.loanDetails.loanType
+      loanAmount = genValDet.loanDetails.amount
 
-      nationality = borrowerDetails.nationality; 
-      residentialStatus = borrowerDetails.residentialStatus
+      nationality = genValDet.borrowerDetails.nationality; 
+      residentialStatus = genValDet.borrowerDetails.residentialStatus
 
   validateLoanType loanType nationality residentialStatus
 
   pure ()
+
+-- Validate Requested Loan Amount:
+validateRequestedLoanAmount : LoanLimitValidationDetails -> Update (Decimal, Decimal)
+validateRequestedLoanAmount loanLimDet = do
+  let borrower = loanLimDet.borrower; bank = loanLimDet.bank; 
+        loanReqId = loanLimDet.loanReqId; requestedLoanAmount = loanLimDet.loanDetails.amount
+
+  isLoanLimitAvail <- lookupByKey @LoanLimit (bank, borrower, loanReqId)
+
+  (requestedLoanAmount, maxLoanAmount) <- do
+    if isSome isLoanLimitAvail then
+      do
+        maxLoanAmount <- fetchByKey @LoanLimit (bank, borrower, loanReqId) >>= 
+          (\loanLimit -> do return loanLimit._2.maxLoanAmount)
+
+        assertMsg ("Requested amount: " <> (show requestedLoanAmount) <> " should be greater than zero and does " <> 
+          "not exceed max loan amount: " <> (show maxLoanAmount)) (requestedLoanAmount > 0.0 && 
+            requestedLoanAmount <= requestedLoanAmount)
+
+        return (requestedLoanAmount, maxLoanAmount)
+    else
+      do
+        abort "Loan Limit not found"
+
+  pure (requestedLoanAmount, maxLoanAmount)
 
 -- Validate Loan Type:
 validateLoanType : Text -> Text -> Text -> Update ()
@@ -141,7 +181,7 @@ validateLoanType loanType nationality residentialStatus = do
   case loanType of
     {- 
       Personal/Business Loan is only eligible either if the borrower is Singaporean or Non-Singaporean but with 
-      neither Residential Status of Foreigner nor Others.
+      neither Residential Status of Foreigner nor Others:
     -}
     lt | lt == personalLoanType || lt == businessLoanType ->
       assertMsg (lt <> " Loan Type is unallowed for Nationality: " <> nationality 

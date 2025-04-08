@@ -1,0 +1,27 @@
+module LoanDisbursementLimit.Main.LoanApplication where
+
+import LoanDisbursementLimit.Main.LoanLimit
+import LoanDisbursementLimit.Model.LoanApprovalModel
+
+template LoanApplication
+  with
+    borrower : Party
+    bank : Party
+    loanAppId: Text
+    loanDetails : LoanDetails
+    borrowerDetails : BorrowerDetails
+    employmentDetails : EmploymentDetails
+
+  where
+    signatory borrower
+    observer bank
+
+    key (bank, borrower, loanAppId) : LoanApplicationKey
+    maintainer key._2
+
+    -- Create Loan Limit Choice:
+    choice CreateLoanLimit : ContractId LoanLimit
+      with maxLoanAmount : Decimal
+      controller bank
+      do
+        create LoanLimit with loanLimitId = loanAppId, ..
