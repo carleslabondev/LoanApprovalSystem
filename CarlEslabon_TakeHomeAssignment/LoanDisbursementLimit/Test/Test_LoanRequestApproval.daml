@@ -20,8 +20,8 @@ test_LoanRequestApplication = script do
 
   (borrowerDetails, employmentDetails, loanDetails) <- generateLoanRequestData
   loanBorrowerCID <- submit borrower do createCmd LoanBorrower with ..
-  
-  loanApplicationCID <- submit borrower do 
+
+  loanApplicationCID <- submit borrower do
     exerciseCmd loanBorrowerCID CreateLoanApplication with loanAppId = "58230947125683", ..
 
   pure (borrower, bank, loanDetails, loanBorrowerCID, loanApplicationCID)
@@ -30,8 +30,8 @@ test_LoanRequestApplication = script do
 test_LoanLimitCreation : Script (Party, Party, LoanDetails, ContractId LoanBorrower, ContractId LoanLimit)
 test_LoanLimitCreation = script do
   (borrower, bank, loanDetails, loanBorrowerCID, loanApplicationCID) <- test_LoanRequestApplication
-  
-  loanLimitCID <- submit bank do 
+
+  loanLimitCID <- submit bank do
     exerciseCmd loanApplicationCID CreateLoanLimit with maxLoanAmount = 1000.00, ..
 
   pure (borrower, bank, loanDetails, loanBorrowerCID, loanLimitCID)
@@ -40,8 +40,8 @@ test_LoanLimitCreation = script do
 test_LoanRequestCreation : Script (Party, Party, ContractId LoanRequest)
 test_LoanRequestCreation = script do
   (borrower, bank, loanDetails, loanBorrowerCID, loanLimitCID) <- test_LoanLimitCreation
-  
-  loanRequestCID <- submit borrower do 
+
+  loanRequestCID <- submit borrower do
     exerciseCmd loanBorrowerCID CreateLoanRequest with loanReqId = "58230947125683", ..
 
   pure (borrower, bank, loanRequestCID)
@@ -58,7 +58,7 @@ test_LoanRequestApproval = script do
 test_TokenDisbursement : Script ()
 test_TokenDisbursement = script do
   (borrower, bank, loanCID) <- test_LoanRequestApproval
-  
+
   let loanId = "58230947125683"
   submitMulti [bank, borrower] [] do exerciseCmd loanCID Disburse with mintTokens = 100.0
 

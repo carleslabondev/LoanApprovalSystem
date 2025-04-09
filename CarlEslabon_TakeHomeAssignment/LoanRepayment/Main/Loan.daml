@@ -10,7 +10,6 @@ import LoanRepayment.Model.DisbursedTokenModel
 import LoanRepayment.Util.TokenUtil
 
 import DA.Optional
-import DA.Action
 
 template Loan
   with
@@ -66,31 +65,31 @@ template Loan
 
                   assertMsg ("Repayment amount: " <> (show repaymentAmount) <> " should be " <>
                     "greater than zero and does not exceed token balance: " <> (show tokenBalance))
-                      (repaymentAmount > 0.0 && repaymentAmount <= tokenBalance &&
-                        repaymentAmount <= totalDisbursedAmount)
+                      (repaymentAmount > 0.0 && repaymentAmount <= tokenBalance)
 
                   return tokenBalance
               else
                 do
                   abort "Token not found"
 
-            assertMsg ("Repayment amount: " <> (show tokenBalance) <> " should be greater than zero, at " <>
-              "least: " <> (show minRepayment) <> " does not exceed approved loan amount: " <>
-                (show approvedLoanAmount)) (tokenBalance >= minRepayment &&
-                  tokenBalance <= approvedLoanAmount)
+            assertMsg ("Repayment amount: " <> (show repaymentAmount) <> " should be greater than zero, at " <>
+              "least: " <> (show minRepayment) <> " and does not exceed the total disbursed amount: " <>
+                (show totalDisbursedAmount)) (repaymentAmount >= minRepayment &&
+                  repaymentAmount <= totalDisbursedAmount)
 
             let updatedRepaidAmount = totalRepaidAmount + tokenBalance;
-                  amountToBePaid = updatedRepaidAmount - approvedLoanAmount
+                  amountToBePaid = updatedRepaidAmount - totalDisbursedAmount
 
-            assertMsg ("Overall current repaid amount: " <> (show updatedRepaidAmount) <> " exceeds approved " <>
-              "loan amount: " <> (show approvedLoanAmount) <> ". Remaining amount to be paid is: " <>
-                (show amountToBePaid)) (updatedRepaidAmount <= approvedLoanAmount)
+            assertMsg ("Overall current repaid amount: " <> (show updatedRepaidAmount) <> " exceeds total " <>
+              "disbursed amount: " <> (show totalDisbursedAmount) <> ". Remaining amount to be paid is: " <>
+                (show amountToBePaid)) (updatedRepaidAmount <= totalDisbursedAmount)
 
             -- Update Token contract associated with the repayment process:
             exerciseByKey @Token (bank, borrower, loanId) Burn with ..
 
             -- Update total repaid amount from Loan contract:
-            create this with totalRepaidAmount = updatedRepaidAmount
+            let updatedTotalRepaidAmount = totalRepaidAmount + repaymentAmount
+            create this with totalRepaidAmount = updatedTotalRepaidAmount
 
             return ()
         else
@@ -103,15 +102,17 @@ template Loan
     choice Delete : ()
       controller bank
       do
-        when (totalRepaidAmount == approvedLoanAmount && totalRepaidAmount == totalDisbursedAmount)
+        if (totalRepaidAmount == totalDisbursedAmount) then
           do
-            archive self
             exerciseByKey @Token (bank, borrower, loanId) DeleteToken
+            exerciseByKey @LoanLimit (bank, borrower, loanId) UpdateLoanLimitFromRepayment with ..
+            exerciseByKey @RepaymentRestriction (bank, borrower, loanId) UpdateRepaymentUponArchival
 
-        exerciseByKey @LoanLimit (bank, borrower, loanId) UpdateLoanLimitFromRepayment with ..
-        exerciseByKey @RepaymentRestriction (bank, borrower, loanId) UpdateRepaymentUponArchival
-
-        return ()
+            return ()
+        else
+          do
+            abort ("Total Repaid Amount: " <> (show totalRepaidAmount) <> " must be equal with the " <>
+              "Total Disbursed Amount: " <> (show totalDisbursedAmount))
 
     -- Update Approved Loan Amount Choice:
     choice UpdateApprovedLoanAmount : ContractId Loan
@@ -128,8 +129,8 @@ template Loan
       controller bank
       do
         assertMsg ("Minimum Repayment: " <> (show minRepayment) <> " should be greater than zero and " <>
-          "does not exceed approved loan limit: " <> (show approvedLoanAmount))
-            (minRepayment > 0.0 && minRepayment <= approvedLoanAmount)
+          "does not exceed total disbursed amount: " <> (show totalDisbursedAmount))
+            (minRepayment > 0.0 && minRepayment <= totalDisbursedAmount)
 
         create RepaymentRestriction with repaymentRestrictionId = loanId, ..
 
@@ -145,8 +146,8 @@ template Loan
             repaymentRestriction <- fetchByKey @RepaymentRestriction (bank, borrower, loanId)
 
             assertMsg ("Updated Minimum Repayment: " <> (show updatedMinRepayment) <> " should be greater than " <>
-              "zero and does not exceed approved loan limit: " <> (show approvedLoanAmount))
-                (updatedMinRepayment > 0.0 && updatedMinRepayment <= approvedLoanAmount)
+              "zero and does not exceed total disbursed amount: " <> (show totalDisbursedAmount))
+                (updatedMinRepayment > 0.0 && updatedMinRepayment <= totalDisbursedAmount)
 
             archive repaymentRestriction._1
             create repaymentRestriction._2 with minRepayment = updatedMinRepayment

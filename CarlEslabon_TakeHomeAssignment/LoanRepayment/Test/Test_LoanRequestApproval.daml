@@ -55,7 +55,7 @@ test_LoanRequestApproval = script do
   pure (borrower, bank, loanCID)
 
 -- Simulate the testing for the Token Disbursement:
-test_TokenDisbursement : Script ()
+test_TokenDisbursement : Script (Party, Party, ContractId Loan)
 test_TokenDisbursement = script do
   (borrower, bank, loanCID) <- test_LoanRequestApproval
 
@@ -75,5 +75,42 @@ test_TokenDisbursement = script do
   -- Invalid transaction with the total disbursed amount exceeding the approved loan amount:
   Some loanCID <- queryContractKey @Loan bank (bank, borrower, loanId)
   submitMultiMustFail [bank, borrower] [] do exerciseCmd loanCID._1 Disburse with mintTokens = 100.0
+
+  Some loanCID <- queryContractKey @Loan bank (bank, borrower, loanId)
+
+  pure (borrower, bank, loanCID._1)
+
+-- Simulate the testing for the Repayment Restriction Creation:
+test_RepaymentRestrictionCreation : Script (Party, Party, ContractId Loan)
+test_RepaymentRestrictionCreation = script do
+  (borrower, bank, loanCID) <- test_TokenDisbursement
+
+  submit bank do exerciseCmd loanCID CreateRepaymentRestriction with minRepayment = 100.0
+
+  pure (borrower, bank, loanCID)
+
+-- Simulate the execution of Repayment for the Loan:
+test_ExecuteLoanRepayment : Script ()
+test_ExecuteLoanRepayment = script do
+  (borrower, bank, loanCID) <- test_RepaymentRestrictionCreation
+
+  let loanId = "58230947125683"
+  submit borrower do exerciseCmd loanCID Repay with repaymentAmount = 100.0
+
+  Some loanCID <- queryContractKey @Loan bank (bank, borrower, loanId)
+  submit borrower do exerciseCmd loanCID._1 Repay with repaymentAmount = 100.0
+
+  Some loanCID <- queryContractKey @Loan bank (bank, borrower, loanId)
+  submit borrower do exerciseCmd loanCID._1 Repay with repaymentAmount = 100.0
+
+  -- Invalid transaction with the upcoming repayment amount exceeding the total repaid amount:
+  Some loanCID <- queryContractKey @Loan bank (bank, borrower, loanId)
+  submitMustFail borrower do exerciseCmd loanCID._1 Repay with repaymentAmount = 100.0
+
+  -- Archive Loan & Token contract. Reset Loan Limt & Repayment Restriction contract:
+  submit bank do exerciseCmd loanCID._1 Delete
+
+  -- Invalid transaction given that the Loan Contract has already been archived:
+  submitMustFail bank do exerciseCmd loanCID._1 Delete
 
   pure ()
