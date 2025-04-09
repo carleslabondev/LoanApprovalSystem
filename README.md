@@ -7,18 +7,18 @@ This project implements a comprehensive loan approval, disbursement, and repayme
 
 ## Approach
 
-### 1. Basic Loan Approval (Easy)
+### 1. Basic Loan Approval
 - Implemented `LoanRequest` and `Loan` templates with core functionality.
 - Created a simple approval workflow where banks can approve requests.
 - Designed the system to automatically archive requests and create loan contracts upon approval.
 
-### 2. Token Disbursement with Limit Validation (Medium)
+### 2. Token Disbursement with Limit Validation
 - Added `Token` and `LoanLimit` templates to track available funds.
 - Implemented validation to ensure loan amounts don't exceed bank limits.
 - Created a disbursement mechanism with proper authorization checks.
 - Added assertions to prevent over-disbursement.
 
-### 3. Repayment Workflow (Difficult)
+### 3. Repayment Workflow
 - Introduced `RepaymentRestriction` template for minimum payment rules.
 - Implemented incremental repayment functionality.
 - Added logic to track repaid amounts and automatically archive paid loans.
